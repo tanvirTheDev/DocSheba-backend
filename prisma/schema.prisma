@@ -1,0 +1,814 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+// ─────────────────────────────────────────────────────────────
+// Prisma Generator
+// ─────────────────────────────────────────────────────────────
+// generator client {
+//   provider      = "prisma-client-js"
+//   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+// }
+
+
+// ─────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum Role {
+  PATIENT
+  DOCTOR
+  DOCTOR_ASSISTANT
+  ADMIN
+}
+
+enum PaymentMethod {
+  CASH
+  BKASH
+  NAGAD
+  ROCKET
+  CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum AppointmentType {
+  CONSULTATION
+  FOLLOW_UP
+  PRENATAL
+  POSTPARTUM
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum VerificationStatus {
+  PENDING
+  USED
+  EXPIRED
+}
+
+enum VerificationCodeType {
+  ACCOUNT_ACTIVATION
+  PASSWORD_RESET
+  EMAIL_CHANGE
+  PHONE_CHANGE
+  TWO_FACTOR_AUTH
+  TWO_FACTOR_AUTH_DISABLE
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum PrescriptionStatus {
+  DRAFT
+  FINALIZED
+  PRINTED
+}
+
+enum DrugForm {
+  TABLET
+  CAPSULE
+  SYRUP
+  INJECTION
+  INHALER
+  DROP
+  CREAM
+  SUPPOSITORY
+  PATCH
+  OTHER
+}
+
+enum TemplateType {
+  ADVICE
+  DRUG
+  TREATMENT
+  PRESCRIPTION
+  INVESTIGATION
+}
+
+// NEW: duration unit for chief complaints
+enum DurationUnit {
+  DAYS
+  WEEKS
+  MONTHS
+  YEARS
+}
+
+//  referral agent type
+enum ReferralAgentType {
+  MARKETING_OFFICER
+  CLINIC_MANAGER
+  EXTERNAL_AGENT
+  DOCTOR
+  OTHER
+}
+
+//  commission type
+enum CommissionType {
+  FLAT        // fixed BDT amount per patient
+  PERCENTAGE  // % of consultation fee
+  NONE
+}
+
+// ─────────────────────────────────────────────────────────────
+// USER MODEL
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id       String        @id @default(cuid())
+  name     String
+  email    String        @unique
+  phone    String?
+  password String
+  role     Role          @default(PATIENT)
+  verified Boolean       @default(false)
+  status   AccountStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── Doctor ↔ Assistant self-relation ──────────────────────
+  assistantId String?
+  doctor      User?   @relation("DoctorAssistant", fields: [assistantId], references: [id])
+  assistants  User[]  @relation("DoctorAssistant")
+
+  // ── Auth relations ─────────────────────────────────────────
+  verificationCodes VerificationCode[]
+  refreshTokens     Refresh[]
+
+  // ── Appointment relations ──────────────────────────────────
+  patientAppointments Appointment[] @relation("PatientAppointments")
+  doctorAppointments  Appointment[] @relation("DoctorAppointments")
+  bookedAppointments  Appointment[] @relation("BookedByUser")
+
+  // ── Profile extensions ─────────────────────────────────────
+  patientProfile PatientProfile?
+  doctorProfile  DoctorProfile?
+
+  // ── Template ownership ─────────────────────────────────────
+  adviceTemplates       AdviceTemplate[]
+  drugTemplates         DrugTemplate[]
+  treatmentTemplates    TreatmentTemplate[]
+  prescriptionTemplates PrescriptionTemplate[]
+
+  // ── Payment reverse relation (🔴 fix: was missing) ────────
+  payments Payment[]
+
+  // ── Audit ──────────────────────────────────────────────────
+  auditLogs AuditLog[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// PATIENT PROFILE
+// ─────────────────────────────────────────────────────────────
+
+model PatientProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  regNo       String?   @unique
+  dateOfBirth DateTime?
+  sex         Sex?
+  bloodGroup  String?
+  address     String?
+  weightKg    Decimal?  @db.Decimal(5, 2)
+  heightCm    Decimal?  @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────
+// DOCTOR PROFILE
+// ─────────────────────────────────────────────────────────────
+
+model DoctorProfile {
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  specialty         String?
+  qualifications    String?
+  licenseNo         String? @unique
+  signatureImageUrl String?
+  clinicName        String?
+  clinicAddress     String?
+  isAvailable       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────
+// REFERRAL AGENT
+// A marketing officer / clinic manager / external agent
+// who refers patients to the clinic. Tracked separately
+// for commission calculation and reporting.
+// ─────────────────────────────────────────────────────────────
+
+model ReferralAgent {
+  id             String            @id @default(cuid())
+
+  name           String
+  phone          String?           @unique
+  email          String?           @unique
+  organization   String?           // hospital / NGO / company they represent
+  agentType      ReferralAgentType @default(OTHER)
+
+  // Commission settings (applied when a referral is created)
+  commissionType  CommissionType @default(NONE)
+  commissionValue Decimal?       @db.Decimal(8, 2)
+  // FLAT  → fixed BDT amount e.g. 100.00
+  // PERCENTAGE → e.g. 10.00 means 10%
+
+  isActive Boolean @default(true)
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  referrals Referral[]
+
+  @@index([agentType])
+}
+
+// ─────────────────────────────────────────────────────────────
+// REFERRAL
+// Links a ReferralAgent to a specific Appointment.
+// Commission values are snapshotted at creation time so
+// future rate changes do not affect past records.
+// ─────────────────────────────────────────────────────────────
+
+model Referral {
+  id            String        @id @default(cuid())
+
+  agentId       String
+  agent         ReferralAgent @relation(fields: [agentId], references: [id])
+
+  appointmentId String        @unique   // one referral per appointment
+  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  // Snapshot of commission at time of referral
+  commissionType   CommissionType @default(NONE)
+  commissionValue  Decimal?       @db.Decimal(8, 2)
+  commissionEarned Decimal?       @db.Decimal(10, 2)  // final calculated amount
+
+  isPaid  Boolean   @default(false)
+  paidAt  DateTime?
+  notes   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([agentId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// APPOINTMENT SERIAL
+// Maintains a daily counter per doctor.
+// When a new appointment is booked, the backend:
+//   1. Upserts this row for (doctorId, today)
+//   2. Increments lastSerial
+//   3. Writes that value into Appointment.serialNo
+// Resets naturally because each new date = new row.
+// ─────────────────────────────────────────────────────────────
+
+model AppointmentSerial {
+  id         String   @id @default(cuid())
+  doctorId   String
+  serialDate DateTime @db.Date    // date only, no time component
+  lastSerial Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([doctorId, serialDate])  // one counter per doctor per day
+  @@index([doctorId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// APPOINTMENT
+// ─────────────────────────────────────────────────────────────
+
+model Appointment {
+  id              String            @id @default(cuid())
+
+  patientId       String
+  patient         User              @relation("PatientAppointments", fields: [patientId], references: [id])
+
+  doctorId        String
+  doctor          User              @relation("DoctorAppointments", fields: [doctorId], references: [id])
+
+  // Who actually booked (patient self / admin / assistant)
+  bookedById      String?
+  bookedBy        User?             @relation("BookedByUser", fields: [bookedById], references: [id])
+
+  // Daily token number for this doctor e.g. Serial #7
+  serialNo        Int?
+
+  fee             Int
+  appointmentType AppointmentType   @default(CONSULTATION)
+  status          AppointmentStatus @default(PENDING)
+  paymentMethod   PaymentMethod     @default(CASH)
+  paymentStatus   Boolean           @default(false)
+  appointmentDate DateTime
+  location        String?
+  chiefComplaint  String?
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── Downstream relations ───────────────────────────────────
+  prescription Prescription?
+  payments     Payment[]
+  referral     Referral?     // populated only if booked via an agent
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([appointmentDate])
+  @@index([doctorId, appointmentDate])
+}
+
+// ─────────────────────────────────────────────────────────────
+// PRESCRIPTION (root clinical record)
+// ─────────────────────────────────────────────────────────────
+
+model Prescription {
+  id               String             @id @default(cuid())
+  appointmentId    String             @unique
+  appointment      Appointment        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  doctorId         String
+  patientId        String
+
+  prescriptionDate DateTime           @default(now())
+  status           PrescriptionStatus @default(DRAFT)
+  headerTemplate   String?
+  clinicalNotes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── Clinical sections ──────────────────────────────────────
+  chiefComplaints ChiefComplaint[]
+  history         History?
+  examinations    Examination[]
+  diagnoses       Diagnosis[]
+  investigations  Investigation[]
+  rxItems         RxItem[]
+  advices         PrescriptionAdvice[]
+  reportEntries   ReportEntry[]
+  bmiRecord       BmiRecord?
+  drugHistories   DrugHistory[]
+  plans           Plan[]
+  notes           Note[]              // bottom Note section
+
+  @@index([doctorId])
+  @@index([patientId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// C/C — CHIEF COMPLAINTS
+// ─────────────────────────────────────────────────────────────
+
+model ChiefComplaint {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  complaint    String
+  duration     String?
+  durationUnit DurationUnit? // 🟡 fix: was free String, now enum
+  sortOrder    Int           @default(0)
+}
+
+// ─────────────────────────────────────────────────────────────
+// H/O — HISTORY
+// ─────────────────────────────────────────────────────────────
+
+model History {
+  id             String       @id @default(cuid())
+  prescriptionId String       @unique
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  htn                 Boolean @default(false)
+  dm                  Boolean @default(false)
+  copd                Boolean @default(false)
+  ihd                 Boolean @default(false)
+  ckd                 Boolean @default(false)
+  cld                 Boolean @default(false)
+  tobaccoChewing      Boolean @default(false)
+  smoking             Boolean @default(false)
+  cvd                 Boolean @default(false)
+  asthma              Boolean @default(false)
+  malignancy          Boolean @default(false)
+  allergy             Boolean @default(false)
+  psychiatricDisorder Boolean @default(false)
+  drugAbuse           Boolean @default(false)
+  depression          Boolean @default(false)
+  otherNotes          String?
+}
+
+// ─────────────────────────────────────────────────────────────
+// O/E — EXAMINATIONS
+// ─────────────────────────────────────────────────────────────
+
+model Examination {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  parameter String  // BP | Pulse | Temp | SpO2 | Heart | Lungs |
+                    // Abd | Anaemia | Jaundice | Cyanosis | Oedema
+  value     String?
+  unit      String?
+  sortOrder Int     @default(0)
+
+  @@index([prescriptionId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// D/X — DIAGNOSES
+// ─────────────────────────────────────────────────────────────
+
+model Diagnosis {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  diagnosisText String
+  sortOrder     Int @default(0)
+}
+
+// ─────────────────────────────────────────────────────────────
+// I/X — INVESTIGATIONS
+// ─────────────────────────────────────────────────────────────
+
+model Investigation {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  investigationName String
+  sortOrder         Int @default(0)
+}
+
+// ─────────────────────────────────────────────────────────────
+// DRUG DATABASE (master catalogue)
+// ─────────────────────────────────────────────────────────────
+
+model DrugDatabase {
+  id          String   @id @default(cuid())
+  brandName   String
+  genericName String?
+  drugClass   String?
+  strength    String?
+  form        DrugForm @default(TABLET)
+  isActive    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rxItems                   RxItem[]
+  drugTemplateItems         DrugTemplateItem[]
+  prescriptionTemplateItems PrescriptionTemplateItem[]
+
+  @@index([brandName])
+  @@index([genericName])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Rx — PRESCRIPTION DRUG ITEMS
+// ─────────────────────────────────────────────────────────────
+
+model RxItem {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  drugId      String?
+  drug        DrugDatabase? @relation(fields: [drugId], references: [id])
+
+  itemNo      Int
+  customBrand String?
+  dose        String?
+  instruction String?   // e.g. "খাবার পর"
+  duration    String?   // e.g. "২ দিন"
+  sortOrder   Int       @default(0)
+
+  @@index([prescriptionId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADVICE — PRESCRIPTION ADVICE
+// ─────────────────────────────────────────────────────────────
+
+model PrescriptionAdvice {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  adviceText       String?
+  nextVisitDate    String?
+  fee              Decimal? @db.Decimal(10, 2)
+  visitNo          Int?
+  doctorContact    String?
+  emergencyContact String?
+  sortOrder        Int @default(0)
+}
+
+// ─────────────────────────────────────────────────────────────
+// REPORT ENTRY
+// ─────────────────────────────────────────────────────────────
+
+model ReportEntry {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  reportDate  DateTime?
+  reportName  String
+  resultValue String?
+  unit        String?
+}
+
+// ─────────────────────────────────────────────────────────────
+// BMI RECORD
+// ─────────────────────────────────────────────────────────────
+
+model BmiRecord {
+  id             String       @id @default(cuid())
+  prescriptionId String       @unique
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  weightKg      Decimal? @db.Decimal(5, 2)
+  heightFeet    Decimal? @db.Decimal(4, 2)
+  heightInches  Decimal? @db.Decimal(4, 2)
+  bmiValue      Decimal? @db.Decimal(5, 2)
+  bmiClass      String?  // Underweight | Normal | Overweight | Obese
+  idealWeightKg Decimal? @db.Decimal(5, 2)
+  insulin       Decimal? @db.Decimal(6, 2)
+  qScore        Decimal? @db.Decimal(6, 2)
+  wwi           Decimal? @db.Decimal(6, 2)
+  bild          Decimal? @db.Decimal(6, 2)
+}
+
+// ─────────────────────────────────────────────────────────────
+// DRUG HISTORY
+// ─────────────────────────────────────────────────────────────
+
+model DrugHistory {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  drugName  String
+  details   String?
+  sortOrder Int @default(0)
+}
+
+// ─────────────────────────────────────────────────────────────
+// PLAN
+// ─────────────────────────────────────────────────────────────
+
+model Plan {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  planText  String
+  sortOrder Int @default(0)
+}
+
+// ─────────────────────────────────────────────────────────────
+// NOTE  (bottom section visible in screenshot)
+// ─────────────────────────────────────────────────────────────
+
+model Note {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  noteText  String
+  sortOrder Int @default(0)
+}
+
+// ─────────────────────────────────────────────────────────────
+// TEMPLATES
+// ─────────────────────────────────────────────────────────────
+
+// ── 1. Advice Template ────────────────────────────────────────
+
+model AdviceTemplate {
+  id           String  @id @default(cuid())
+  doctorId     String
+  doctor       User    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  templateName String
+  adviceText   String
+  isShared     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([doctorId])
+}
+
+// ── 2. Drug / Rx Template ─────────────────────────────────────
+
+model DrugTemplate {
+  id           String @id @default(cuid())
+  doctorId     String
+  doctor       User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  templateName String
+  isShared     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items DrugTemplateItem[]
+
+  @@index([doctorId])
+}
+
+model DrugTemplateItem {
+  id         String       @id @default(cuid())
+  templateId String
+  template   DrugTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  drugId      String?
+  drug        DrugDatabase? @relation(fields: [drugId], references: [id])
+
+  customBrand String?
+  dose        String?
+  instruction String?
+  duration    String?
+  sortOrder   Int @default(0)
+}
+
+// ── 3. Treatment Template ─────────────────────────────────────
+
+model TreatmentTemplate {
+  id           String @id @default(cuid())
+  doctorId     String
+  doctor       User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  templateName   String
+  treatmentNotes String
+  isShared       Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([doctorId])
+}
+
+// ── 4. Prescription Template (full preset) ────────────────────
+
+model PrescriptionTemplate {
+  id           String @id @default(cuid())
+  doctorId     String
+  doctor       User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  templateName String
+  isShared     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items PrescriptionTemplateItem[]
+
+  @@index([doctorId])
+}
+
+model PrescriptionTemplateItem {
+  id         String               @id @default(cuid())
+  templateId String
+  template   PrescriptionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  drugId        String?
+  drug          DrugDatabase? @relation(fields: [drugId], references: [id])
+
+  diagnosisText String?
+  adviceText    String?
+  customBrand   String?
+  dose          String?
+  instruction   String?
+  duration      String?
+  sortOrder     Int @default(0)
+}
+
+// ─────────────────────────────────────────────────────────────
+// PAYMENT
+// ─────────────────────────────────────────────────────────────
+
+model Payment {
+  id            String        @id @default(cuid())
+
+  appointmentId String
+  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  patientId     String
+  patient       User          @relation(fields: [patientId], references: [id])
+
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod @default(CASH)
+  status        PaymentStatus @default(PENDING)
+
+  // Mobile banking fields
+  phoneNumber   String?
+  transactionId String?  @unique
+
+  receiptNo    String?  @unique
+  paymentProof String?  // screenshot URL (Cloudinary / S3)
+  note         String?
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([appointmentId])
+  @@index([patientId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUDIT LOG
+// ─────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  action    String   // CREATE | UPDATE | DELETE | LOGIN | PRINT
+  tableName String
+  recordId  String?
+  changes   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tableName, recordId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// VERIFICATION CODE
+// ─────────────────────────────────────────────────────────────
+
+model VerificationCode {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status     VerificationStatus   @default(PENDING)
+  code       String
+  type       VerificationCodeType @default(ACCOUNT_ACTIVATION)
+  issuedAt   DateTime             @default(now())
+  expiresAt  DateTime
+  verifiedAt DateTime?
+}
+
+// ─────────────────────────────────────────────────────────────
+// REFRESH TOKEN
+// ─────────────────────────────────────────────────────────────
+
+model Refresh {
+  id        String   @id @default(cuid())
+  userId    String
+  email     String
+  token     String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}

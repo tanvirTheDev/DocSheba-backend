@@ -1,0 +1,53 @@
+{
+    "name": "dotspot",
+    "version": "1.0.0",
+    "description": "",
+    "main": "dist/index.js",
+    "author": "",
+    "license": "ISC",
+    "scripts": {
+        "install:pkg": "npm install --legacy-peer-deps",
+        "build": "rimraf dist && tsc -p tsconfig.json",
+        "start": "node dist/index.js",
+        "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+        "check-types": "tsc -p tsconfig.json --noEmit",
+        "migrate:dev": "prisma migrate dev",
+        "migrate:prod": "prisma migrate deploy && prisma generate",
+        "generate": "prisma generate",
+        "studio": "prisma studio",
+        "seed": "ts-node ./src/seed/index.ts",
+        "postinstall": "prisma generate"
+    },
+    "dependencies": {
+        "@prisma/adapter-pg": "^7.5.0",
+        "@prisma/client": "^7.7.0",
+        "bcryptjs": "^3.0.3",
+        "cloudinary": "^2.9.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.5.0",
+        "express": "^5.1.0",
+        "jsonwebtoken": "^9.0.3",
+        "morgan": "^1.10.0",
+        "multer": "^1.4.5-lts.2",
+        "pg": "^8.20.0",
+        "resend": "^4.5.1",
+        "rimraf": "^6.0.1",
+        "uuid": "^11.1.0",
+        "zod": "^3.24.4"
+    },
+    "devDependencies": {
+        "@types/bcryptjs": "^2.4.6",
+        "@types/cors": "^2.8.18",
+        "@types/express": "^5.0.1",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/morgan": "^1.9.9",
+        "@types/multer": "^1.4.12",
+        "@types/node": "^22.15.17",
+        "@types/pg": "^8.18.0",
+        "@types/uuid": "^10.0.0",
+        "prisma": "^7.7.0",
+        "ts-node": "^10.9.2",
+        "ts-node-dev": "^2.0.0",
+        "typescript": "^5.8.3"
+    }
+}

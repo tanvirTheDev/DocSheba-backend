@@ -1,0 +1,2944 @@
+# @format
+
+openapi: 3.0.3
+info:
+    title: Clinic Management & Prescription System API
+    description: |
+        Complete REST API for the Clinic Management & Prescription System.
+        Covers authentication, appointments, prescriptions, templates,
+        referral agents, payments, drug database, and audit logs.
+
+        **Roles:** `PATIENT` · `DOCTOR` · `DOCTOR_ASSISTANT` · `ADMIN`
+
+        **Auth:** All protected endpoints require `Authorization: Bearer <access_token>`
+    version: 1.0.0
+    contact:
+        name: Development Team
+
+servers:
+    - url: http://localhost:5000/api
+      description: Local development
+    - url: https://api.yourclinic.com/api
+      description: Production
+
+tags:
+    - name: Auth
+    - name: Users
+    - name: Patient Profile
+    - name: Doctor Profile
+    - name: Appointments
+    - name: Prescriptions
+    - name: Chief Complaints
+    - name: History
+    - name: Examinations
+    - name: Diagnoses
+    - name: Investigations
+    - name: Rx Items
+    - name: Advice
+    - name: Report Entries
+    - name: BMI
+    - name: Drug History
+    - name: Plans
+    - name: Notes
+    - name: Drug Database
+    - name: Templates – Advice
+    - name: Templates – Drug
+    - name: Templates – Treatment
+    - name: Templates – Prescription
+    - name: Referral Agents
+    - name: Referrals
+    - name: Payments
+    - name: Audit Logs
+
+# ──────────────────────────────────────────────────────────────
+# SECURITY
+# ──────────────────────────────────────────────────────────────
+components:
+    securitySchemes:
+        BearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+
+    # ── REUSABLE SCHEMAS ─────────────────────────────────────────
+    schemas:
+        # ── Enums ──────────────────────────────────────────────────
+        Role:
+            type: string
+            enum: [PATIENT, DOCTOR, DOCTOR_ASSISTANT, ADMIN]
+
+        AccountStatus:
+            type: string
+            enum: [PENDING, ACTIVE, INACTIVE, SUSPENDED]
+
+        Sex:
+            type: string
+            enum: [MALE, FEMALE, OTHER]
+
+        AppointmentType:
+            type: string
+            enum: [CONSULTATION, FOLLOW_UP, PRENATAL, POSTPARTUM]
+
+        AppointmentStatus:
+            type: string
+            enum: [PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED]
+
+        PaymentMethod:
+            type: string
+            enum: [CASH, BKASH, NAGAD, ROCKET, CARD]
+
+        PaymentStatus:
+            type: string
+            enum: [PENDING, PAID, FAILED, REFUNDED]
+
+        PrescriptionStatus:
+            type: string
+            enum: [DRAFT, FINALIZED, PRINTED]
+
+        DrugForm:
+            type: string
+            enum:
+                [
+                    TABLET,
+                    CAPSULE,
+                    SYRUP,
+                    INJECTION,
+                    INHALER,
+                    DROP,
+                    CREAM,
+                    SUPPOSITORY,
+                    PATCH,
+                    OTHER,
+                ]
+
+        DurationUnit:
+            type: string
+            enum: [DAYS, WEEKS, MONTHS, YEARS]
+
+        ReferralAgentType:
+            type: string
+            enum:
+                [
+                    MARKETING_OFFICER,
+                    CLINIC_MANAGER,
+                    EXTERNAL_AGENT,
+                    DOCTOR,
+                    OTHER,
+                ]
+
+        CommissionType:
+            type: string
+            enum: [FLAT, PERCENTAGE, NONE]
+
+        # ── Core models ────────────────────────────────────────────
+        User:
+            type: object
+            properties:
+                id: { type: string }
+                name: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string, nullable: true }
+                role: { $ref: "#/components/schemas/Role" }
+                verified: { type: boolean }
+                status: { $ref: "#/components/schemas/AccountStatus" }
+                createdAt: { type: string, format: date-time }
+                updatedAt: { type: string, format: date-time }
+
+        PatientProfile:
+            type: object
+            properties:
+                id: { type: string }
+                userId: { type: string }
+                regNo: { type: string, nullable: true }
+                dateOfBirth: { type: string, format: date, nullable: true }
+                sex: { $ref: "#/components/schemas/Sex" }
+                bloodGroup: { type: string, nullable: true }
+                address: { type: string, nullable: true }
+                weightKg: { type: number, nullable: true }
+                heightCm: { type: number, nullable: true }
+
+        DoctorProfile:
+            type: object
+            properties:
+                id: { type: string }
+                userId: { type: string }
+                specialty: { type: string, nullable: true }
+                qualifications: { type: string, nullable: true }
+                licenseNo: { type: string, nullable: true }
+                signatureImageUrl: { type: string, nullable: true }
+                clinicName: { type: string, nullable: true }
+                clinicAddress: { type: string, nullable: true }
+                isAvailable: { type: boolean }
+
+        Appointment:
+            type: object
+            properties:
+                id: { type: string }
+                patientId: { type: string }
+                doctorId: { type: string }
+                bookedById: { type: string, nullable: true }
+                serialNo: { type: integer, nullable: true }
+                fee: { type: integer }
+                appointmentType:
+                    { $ref: "#/components/schemas/AppointmentType" }
+                status: { $ref: "#/components/schemas/AppointmentStatus" }
+                paymentMethod: { $ref: "#/components/schemas/PaymentMethod" }
+                paymentStatus: { type: boolean }
+                appointmentDate: { type: string, format: date-time }
+                location: { type: string, nullable: true }
+                chiefComplaint: { type: string, nullable: true }
+                notes: { type: string, nullable: true }
+                createdAt: { type: string, format: date-time }
+                updatedAt: { type: string, format: date-time }
+
+        Prescription:
+            type: object
+            properties:
+                id: { type: string }
+                appointmentId: { type: string }
+                doctorId: { type: string }
+                patientId: { type: string }
+                prescriptionDate: { type: string, format: date-time }
+                status: { $ref: "#/components/schemas/PrescriptionStatus" }
+                headerTemplate: { type: string, nullable: true }
+                clinicalNotes: { type: string, nullable: true }
+                createdAt: { type: string, format: date-time }
+                updatedAt: { type: string, format: date-time }
+
+        ChiefComplaint:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                complaint: { type: string }
+                duration: { type: string, nullable: true }
+                durationUnit: { $ref: "#/components/schemas/DurationUnit" }
+                sortOrder: { type: integer }
+
+        History:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                htn: { type: boolean }
+                dm: { type: boolean }
+                copd: { type: boolean }
+                ihd: { type: boolean }
+                ckd: { type: boolean }
+                cld: { type: boolean }
+                tobaccoChewing: { type: boolean }
+                smoking: { type: boolean }
+                cvd: { type: boolean }
+                asthma: { type: boolean }
+                malignancy: { type: boolean }
+                allergy: { type: boolean }
+                psychiatricDisorder: { type: boolean }
+                drugAbuse: { type: boolean }
+                depression: { type: boolean }
+                otherNotes: { type: string, nullable: true }
+
+        Examination:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                parameter: { type: string, example: "BP" }
+                value: { type: string, nullable: true }
+                unit: { type: string, nullable: true }
+                sortOrder: { type: integer }
+
+        Diagnosis:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                diagnosisText: { type: string }
+                sortOrder: { type: integer }
+
+        Investigation:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                investigationName: { type: string }
+                sortOrder: { type: integer }
+
+        Drug:
+            type: object
+            properties:
+                id: { type: string }
+                brandName: { type: string }
+                genericName: { type: string, nullable: true }
+                drugClass: { type: string, nullable: true }
+                strength: { type: string, nullable: true }
+                form: { $ref: "#/components/schemas/DrugForm" }
+                isActive: { type: boolean }
+
+        RxItem:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                drugId: { type: string, nullable: true }
+                itemNo: { type: integer }
+                customBrand: { type: string, nullable: true }
+                dose: { type: string, nullable: true }
+                instruction: { type: string, nullable: true }
+                duration: { type: string, nullable: true }
+                sortOrder: { type: integer }
+
+        PrescriptionAdvice:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                adviceText: { type: string, nullable: true }
+                nextVisitDate: { type: string, nullable: true }
+                fee: { type: number, nullable: true }
+                visitNo: { type: integer, nullable: true }
+                doctorContact: { type: string, nullable: true }
+                emergencyContact: { type: string, nullable: true }
+                sortOrder: { type: integer }
+
+        ReportEntry:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                reportDate: { type: string, format: date, nullable: true }
+                reportName: { type: string }
+                resultValue: { type: string, nullable: true }
+                unit: { type: string, nullable: true }
+
+        BmiRecord:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                weightKg: { type: number, nullable: true }
+                heightFeet: { type: number, nullable: true }
+                heightInches: { type: number, nullable: true }
+                bmiValue: { type: number, nullable: true }
+                bmiClass: { type: string, nullable: true }
+                idealWeightKg: { type: number, nullable: true }
+                insulin: { type: number, nullable: true }
+                qScore: { type: number, nullable: true }
+                wwi: { type: number, nullable: true }
+                bild: { type: number, nullable: true }
+
+        DrugHistory:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                drugName: { type: string }
+                details: { type: string, nullable: true }
+                sortOrder: { type: integer }
+
+        Plan:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                planText: { type: string }
+                sortOrder: { type: integer }
+
+        Note:
+            type: object
+            properties:
+                id: { type: string }
+                prescriptionId: { type: string }
+                noteText: { type: string }
+                sortOrder: { type: integer }
+
+        AdviceTemplate:
+            type: object
+            properties:
+                id: { type: string }
+                doctorId: { type: string }
+                templateName: { type: string }
+                adviceText: { type: string }
+                isShared: { type: boolean }
+
+        DrugTemplate:
+            type: object
+            properties:
+                id: { type: string }
+                doctorId: { type: string }
+                templateName: { type: string }
+                isShared: { type: boolean }
+                items:
+                    type: array
+                    items:
+                        type: object
+                        properties:
+                            drugId: { type: string, nullable: true }
+                            customBrand: { type: string, nullable: true }
+                            dose: { type: string, nullable: true }
+                            instruction: { type: string, nullable: true }
+                            duration: { type: string, nullable: true }
+                            sortOrder: { type: integer }
+
+        TreatmentTemplate:
+            type: object
+            properties:
+                id: { type: string }
+                doctorId: { type: string }
+                templateName: { type: string }
+                treatmentNotes: { type: string }
+                isShared: { type: boolean }
+
+        PrescriptionTemplate:
+            type: object
+            properties:
+                id: { type: string }
+                doctorId: { type: string }
+                templateName: { type: string }
+                isShared: { type: boolean }
+                items:
+                    type: array
+                    items:
+                        type: object
+                        properties:
+                            drugId: { type: string, nullable: true }
+                            customBrand: { type: string, nullable: true }
+                            diagnosisText: { type: string, nullable: true }
+                            adviceText: { type: string, nullable: true }
+                            dose: { type: string, nullable: true }
+                            instruction: { type: string, nullable: true }
+                            duration: { type: string, nullable: true }
+                            sortOrder: { type: integer }
+
+        ReferralAgent:
+            type: object
+            properties:
+                id: { type: string }
+                name: { type: string }
+                phone: { type: string, nullable: true }
+                email: { type: string, nullable: true }
+                organization: { type: string, nullable: true }
+                agentType: { $ref: "#/components/schemas/ReferralAgentType" }
+                commissionType: { $ref: "#/components/schemas/CommissionType" }
+                commissionValue: { type: number, nullable: true }
+                isActive: { type: boolean }
+                notes: { type: string, nullable: true }
+
+        Referral:
+            type: object
+            properties:
+                id: { type: string }
+                agentId: { type: string }
+                appointmentId: { type: string }
+                commissionType: { $ref: "#/components/schemas/CommissionType" }
+                commissionValue: { type: number, nullable: true }
+                commissionEarned: { type: number, nullable: true }
+                isPaid: { type: boolean }
+                paidAt: { type: string, format: date-time, nullable: true }
+                notes: { type: string, nullable: true }
+                createdAt: { type: string, format: date-time }
+
+        Payment:
+            type: object
+            properties:
+                id: { type: string }
+                appointmentId: { type: string }
+                patientId: { type: string }
+                amount: { type: number }
+                method: { $ref: "#/components/schemas/PaymentMethod" }
+                status: { $ref: "#/components/schemas/PaymentStatus" }
+                phoneNumber: { type: string, nullable: true }
+                transactionId: { type: string, nullable: true }
+                receiptNo: { type: string, nullable: true }
+                paymentProof: { type: string, nullable: true }
+                note: { type: string, nullable: true }
+                paidAt: { type: string, format: date-time, nullable: true }
+                createdAt: { type: string, format: date-time }
+
+        AuditLog:
+            type: object
+            properties:
+                id: { type: string }
+                userId: { type: string }
+                action: { type: string, example: "UPDATE" }
+                tableName: { type: string }
+                recordId: { type: string, nullable: true }
+                changes: { type: object, nullable: true }
+                createdAt: { type: string, format: date-time }
+
+        # ── Common responses ───────────────────────────────────────
+        Error:
+            type: object
+            properties:
+                success: { type: boolean, example: false }
+                message: { type: string }
+                errors:
+                    type: array
+                    items: { type: string }
+
+        PaginatedMeta:
+            type: object
+            properties:
+                total: { type: integer }
+                page: { type: integer }
+                limit: { type: integer }
+                pages: { type: integer }
+
+    # ── REUSABLE PARAMETERS ──────────────────────────────────────
+    parameters:
+        id:
+            name: id
+            in: path
+            required: true
+            schema: { type: string }
+        prescriptionId:
+            name: prescriptionId
+            in: path
+            required: true
+            schema: { type: string }
+        page:
+            name: page
+            in: query
+            schema: { type: integer, default: 1 }
+        limit:
+            name: limit
+            in: query
+            schema: { type: integer, default: 20 }
+
+    # ── REUSABLE RESPONSES ───────────────────────────────────────
+    responses:
+        Unauthorized:
+            description: Missing or invalid token
+            content:
+                application/json:
+                    schema: { $ref: "#/components/schemas/Error" }
+        Forbidden:
+            description: Insufficient role permissions
+            content:
+                application/json:
+                    schema: { $ref: "#/components/schemas/Error" }
+        NotFound:
+            description: Resource not found
+            content:
+                application/json:
+                    schema: { $ref: "#/components/schemas/Error" }
+        ValidationError:
+            description: Request body validation failed
+            content:
+                application/json:
+                    schema: { $ref: "#/components/schemas/Error" }
+
+security:
+    - BearerAuth: []
+
+# ══════════════════════════════════════════════════════════════
+# PATHS
+# ══════════════════════════════════════════════════════════════
+paths:
+    # ── AUTH ──────────────────────────────────────────────────────
+    /auth/register:
+        post:
+            tags: [Auth]
+            summary: Register a new user
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [name, email, password]
+                            properties:
+                                name: { type: string, example: "Rahim Uddin" }
+                                email: { type: string, format: email }
+                                phone:
+                                    { type: string, example: "+8801711000000" }
+                                password: { type: string, minLength: 8 }
+            responses:
+                "201":
+                    description: Registered. OTP sent to email.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    success: { type: boolean }
+                                    message: { type: string }
+                                    userId: { type: string }
+                "400": { $ref: "#/components/responses/ValidationError" }
+                "409":
+                    description: Email already registered
+
+    /auth/verify-otp:
+        post:
+            tags: [Auth]
+            summary: Verify OTP for account activation or other flows
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [email, code, type]
+                            properties:
+                                email: { type: string, format: email }
+                                code: { type: string }
+                                type:
+                                    type: string
+                                    enum:
+                                        [
+                                            ACCOUNT_ACTIVATION,
+                                            PASSWORD_RESET,
+                                            EMAIL_CHANGE,
+                                            TWO_FACTOR_AUTH,
+                                        ]
+            responses:
+                "200": { description: OTP verified successfully }
+                "400": { $ref: "#/components/responses/ValidationError" }
+                "410": { description: OTP expired or already used }
+
+    /auth/login:
+        post:
+            tags: [Auth]
+            summary: Login and receive tokens
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [email, password]
+                            properties:
+                                email: { type: string, format: email }
+                                password: { type: string }
+            responses:
+                "200":
+                    description: Login successful
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    success: { type: boolean }
+                                    accessToken: { type: string }
+                                    refreshToken: { type: string }
+                                    user: { $ref: "#/components/schemas/User" }
+                "401": { description: Invalid credentials }
+                "403": { description: Account not verified or suspended }
+
+    /auth/refresh:
+        post:
+            tags: [Auth]
+            summary: Exchange refresh token for new access token
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [refreshToken]
+                            properties:
+                                refreshToken: { type: string }
+            responses:
+                "200":
+                    description: New access token issued
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    accessToken: { type: string }
+                "401": { $ref: "#/components/responses/Unauthorized" }
+
+    /auth/logout:
+        post:
+            tags: [Auth]
+            summary: Logout and invalidate refresh token
+            responses:
+                "200": { description: Logged out }
+
+    /auth/forgot-password:
+        post:
+            tags: [Auth]
+            summary: Send password reset OTP
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [email]
+                            properties:
+                                email: { type: string, format: email }
+            responses:
+                "200": { description: OTP sent if account exists }
+
+    /auth/reset-password:
+        post:
+            tags: [Auth]
+            summary: Reset password using verified OTP
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [email, code, newPassword]
+                            properties:
+                                email: { type: string, format: email }
+                                code: { type: string }
+                                newPassword: { type: string, minLength: 8 }
+            responses:
+                "200": { description: Password updated }
+                "400": { $ref: "#/components/responses/ValidationError" }
+
+    /auth/2fa/enable:
+        post:
+            tags: [Auth]
+            summary: Enable two-factor authentication
+            responses:
+                "200": { description: 2FA enabled. OTP sent. }
+
+    /auth/2fa/disable:
+        post:
+            tags: [Auth]
+            summary: Disable two-factor authentication
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [code]
+                            properties:
+                                code: { type: string }
+            responses:
+                "200": { description: 2FA disabled }
+
+    # ── USERS ─────────────────────────────────────────────────────
+    /users:
+        get:
+            tags: [Users]
+            summary: List all users (Admin)
+            parameters:
+                - { $ref: "#/components/parameters/page" }
+                - { $ref: "#/components/parameters/limit" }
+                - name: role
+                  in: query
+                  schema: { $ref: "#/components/schemas/Role" }
+                - name: status
+                  in: query
+                  schema: { $ref: "#/components/schemas/AccountStatus" }
+            responses:
+                "200":
+                    description: Paginated user list
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        {
+                                            type: array,
+                                            items:
+                                                {
+                                                    $ref: "#/components/schemas/User",
+                                                },
+                                        }
+                                    meta:
+                                        {
+                                            $ref: "#/components/schemas/PaginatedMeta",
+                                        }
+                "401": { $ref: "#/components/responses/Unauthorized" }
+                "403": { $ref: "#/components/responses/Forbidden" }
+
+    /users/{id}:
+        get:
+            tags: [Users]
+            summary: Get user by ID
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            responses:
+                "200":
+                    description: User object
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/User" }
+                "404": { $ref: "#/components/responses/NotFound" }
+
+        patch:
+            tags: [Users]
+            summary: Update user role or status (Admin)
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                role: { $ref: "#/components/schemas/Role" }
+                                status:
+                                    {
+                                        $ref: "#/components/schemas/AccountStatus",
+                                    }
+            responses:
+                "200":
+                    description: Updated user
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/User" }
+                "403": { $ref: "#/components/responses/Forbidden" }
+
+    /users/{id}/assign-assistant:
+        patch:
+            tags: [Users]
+            summary: Doctor assigns an assistant by User ID
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [assistantId]
+                            properties:
+                                assistantId: { type: string }
+            responses:
+                "200": { description: Assistant linked }
+                "403": { $ref: "#/components/responses/Forbidden" }
+
+    # ── PATIENT PROFILE ───────────────────────────────────────────
+    /patients/me:
+        get:
+            tags: [Patient Profile]
+            summary: Get own patient profile
+            responses:
+                "200":
+                    description: Get own patient profile
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/PatientProfile" }
+
+        put:
+            tags: [Patient Profile]
+            summary: Create or update own patient profile
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                dateOfBirth: { type: string, format: date }
+                                sex: { $ref: "#/components/schemas/Sex" }
+                                bloodGroup: { type: string }
+                                address: { type: string }
+                                weightKg: { type: number }
+                                heightCm: { type: number }
+            responses:
+                "200":
+                    description: Create or update own patient profile
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/PatientProfile" }
+
+    /patients/{id}:
+        get:
+            tags: [Patient Profile]
+            summary: Get patient profile by ID (Doctor / Admin)
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            responses:
+                "200":
+                    description: Get patient profile by ID (Doctor / Admin)
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/PatientProfile" }
+                "403": { $ref: "#/components/responses/Forbidden" }
+                "404": { $ref: "#/components/responses/NotFound" }
+
+    # ── DOCTOR PROFILE ────────────────────────────────────────────
+    /doctors/me:
+        get:
+            tags: [Doctor Profile]
+            summary: Get own doctor profile
+            responses:
+                "200":
+                    description: Get own doctor profile
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/DoctorProfile" }
+
+        put:
+            tags: [Doctor Profile]
+            summary: Create or update own doctor profile
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                specialty: { type: string }
+                                qualifications: { type: string }
+                                licenseNo: { type: string }
+                                signatureImageUrl: { type: string }
+                                clinicName: { type: string }
+                                clinicAddress: { type: string }
+            responses:
+                "200":
+                    description: Create or update own doctor profile
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/DoctorProfile" }
+
+    /doctors/{id}/availability:
+        patch:
+            tags: [Doctor Profile]
+            summary: Toggle doctor availability
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [isAvailable]
+                            properties:
+                                isAvailable: { type: boolean }
+            responses:
+                "200": { description: Availability updated }
+
+    # ── APPOINTMENTS ──────────────────────────────────────────────
+    /appointments:
+        get:
+            tags: [Appointments]
+            summary: List appointments (filtered by role)
+            parameters:
+                - { $ref: "#/components/parameters/page" }
+                - { $ref: "#/components/parameters/limit" }
+                - name: status
+                  in: query
+                  schema: { $ref: "#/components/schemas/AppointmentStatus" }
+                - name: date
+                  in: query
+                  schema: { type: string, format: date }
+                - name: doctorId
+                  in: query
+                  schema: { type: string }
+            responses:
+                "200":
+                    description: List appointments (filtered by role)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        {
+                                            type: array,
+                                            items:
+                                                {
+                                                    $ref: "#/components/schemas/Appointment",
+                                                },
+                                        }
+                                    meta:
+                                        {
+                                            $ref: "#/components/schemas/PaginatedMeta",
+                                        }
+
+        post:
+            tags: [Appointments]
+            summary: Book a new appointment (assigns serial number)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                [patientId, doctorId, fee, appointmentDate]
+                            properties:
+                                patientId: { type: string }
+                                doctorId: { type: string }
+                                fee: { type: integer }
+                                appointmentType:
+                                    {
+                                        $ref: "#/components/schemas/AppointmentType",
+                                    }
+                                paymentMethod:
+                                    {
+                                        $ref: "#/components/schemas/PaymentMethod",
+                                    }
+                                appointmentDate:
+                                    { type: string, format: date-time }
+                                location: { type: string }
+                                chiefComplaint: { type: string }
+                                notes: { type: string }
+                                agentId:
+                                    {
+                                        type: string,
+                                        description: "Referral agent ID if applicable",
+                                    }
+            responses:
+                "201":
+                    description: Appointment created with serial number
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Appointment" }
+                "400": { $ref: "#/components/responses/ValidationError" }
+
+    /appointments/serial:
+        get:
+            tags: [Appointments]
+            summary: Get current serial counter for a doctor on a date
+            parameters:
+                - name: doctorId
+                  in: query
+                  required: true
+                  schema: { type: string }
+                - name: date
+                  in: query
+                  required: true
+                  schema: { type: string, format: date }
+            responses:
+                "200":
+                    description: Get current serial counter for a doctor on a date
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    doctorId: { type: string }
+                                    date: { type: string }
+                                    lastSerial: { type: integer }
+                                    next: { type: integer }
+
+    /appointments/{id}:
+        get:
+            tags: [Appointments]
+            summary: Get appointment by ID
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            responses:
+                "200":
+                    description: Get appointment by ID
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Appointment" }
+                "404": { $ref: "#/components/responses/NotFound" }
+
+        patch:
+            tags: [Appointments]
+            summary: Update appointment status or details
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                status:
+                                    {
+                                        $ref: "#/components/schemas/AppointmentStatus",
+                                    }
+                                paymentStatus: { type: boolean }
+                                notes: { type: string }
+                                location: { type: string }
+            responses:
+                "200":
+                    description: Update appointment status or details
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Appointment" }
+
+        delete:
+            tags: [Appointments]
+            summary: Cancel appointment (Admin)
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            responses:
+                "200": { description: Appointment cancelled }
+                "403": { $ref: "#/components/responses/Forbidden" }
+
+    # ── PRESCRIPTIONS ─────────────────────────────────────────────
+    /prescriptions:
+        post:
+            tags: [Prescriptions]
+            summary: Create a prescription for an appointment
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [appointmentId]
+                            properties:
+                                appointmentId: { type: string }
+                                headerTemplate: { type: string }
+                                clinicalNotes: { type: string }
+            responses:
+                "201":
+                    description: Create a prescription for an appointment
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/Prescription" }
+                "409":
+                    {
+                        description: Prescription already exists for this appointment,
+                    }
+
+    /prescriptions/{id}:
+        get:
+            tags: [Prescriptions]
+            summary: Get full prescription with all clinical sections
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            responses:
+                "200":
+                    description: Get full prescription with all clinical sections
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - {
+                                          $ref: "#/components/schemas/Prescription",
+                                      }
+                                    - type: object
+                                      properties:
+                                          chiefComplaints:
+                                              {
+                                                  type: array,
+                                                  items:
+                                                      {
+                                                          $ref: "#/components/schemas/ChiefComplaint",
+                                                      },
+                                              }
+                                          history:
+                                              {
+                                                  $ref: "#/components/schemas/History",
+                                              }
+                                          examinations:
+                                              {
+                                                  type: array,
+                                                  items:
+                                                      {
+                                                          $ref: "#/components/schemas/Examination",
+                                                      },
+                                              }
+                                          diagnoses:
+                                              {
+                                                  type: array,
+                                                  items:
+                                                      {
+                                                          $ref: "#/components/schemas/Diagnosis",
+                                                      },
+                                              }
+                                          investigations:
+                                              {
+                                                  type: array,
+                                                  items:
+                                                      {
+                                                          $ref: "#/components/schemas/Investigation",
+                                                      },
+                                              }
+                                          rxItems:
+                                              {
+                                                  type: array,
+                                                  items:
+                                                      {
+                                                          $ref: "#/components/schemas/RxItem",
+                                                      },
+                                              }
+                                          advices:
+                                              {
+                                                  type: array,
+                                                  items:
+                                                      {
+                                                          $ref: "#/components/schemas/PrescriptionAdvice",
+                                                      },
+                                              }
+                                          reportEntries:
+                                              {
+                                                  type: array,
+                                                  items:
+                                                      {
+                                                          $ref: "#/components/schemas/ReportEntry",
+                                                      },
+                                              }
+                                          bmiRecord:
+                                              {
+                                                  $ref: "#/components/schemas/BmiRecord",
+                                              }
+                                          drugHistories:
+                                              {
+                                                  type: array,
+                                                  items:
+                                                      {
+                                                          $ref: "#/components/schemas/DrugHistory",
+                                                      },
+                                              }
+                                          plans:
+                                              {
+                                                  type: array,
+                                                  items:
+                                                      {
+                                                          $ref: "#/components/schemas/Plan",
+                                                      },
+                                              }
+                                          notes:
+                                              {
+                                                  type: array,
+                                                  items:
+                                                      {
+                                                          $ref: "#/components/schemas/Note",
+                                                      },
+                                              }
+
+        patch:
+            tags: [Prescriptions]
+            summary: Update prescription metadata
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                headerTemplate: { type: string }
+                                clinicalNotes: { type: string }
+            responses:
+                "200":
+                    description: Update prescription metadata
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/Prescription" }
+
+    /prescriptions/{id}/finalize:
+        post:
+            tags: [Prescriptions]
+            summary: Finalize prescription (DRAFT → FINALIZED)
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            responses:
+                "200": { description: Prescription finalized }
+
+    /prescriptions/{id}/print:
+        post:
+            tags: [Prescriptions]
+            summary: Generate PDF and mark as PRINTED
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            responses:
+                "200":
+                    description: PDF URL
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    pdfUrl: { type: string }
+
+    # ── CHIEF COMPLAINTS ──────────────────────────────────────────
+    /prescriptions/{prescriptionId}/complaints:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [Chief Complaints]
+            summary: List chief complaints
+            responses:
+                "200":
+                    description: List chief complaints
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    {
+                                        $ref: "#/components/schemas/ChiefComplaint",
+                                    }
+        post:
+            tags: [Chief Complaints]
+            summary: Add a chief complaint
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [complaint]
+                            properties:
+                                complaint: { type: string }
+                                duration: { type: string }
+                                durationUnit:
+                                    {
+                                        $ref: "#/components/schemas/DurationUnit",
+                                    }
+                                sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Add a chief complaint
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/ChiefComplaint" }
+
+    /prescriptions/{prescriptionId}/complaints/{id}:
+        parameters:
+            - { $ref: "#/components/parameters/prescriptionId" }
+            - { $ref: "#/components/parameters/id" }
+        patch:
+            tags: [Chief Complaints]
+            summary: Update a chief complaint
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                complaint: { type: string }
+                                duration: { type: string }
+                                durationUnit:
+                                    {
+                                        $ref: "#/components/schemas/DurationUnit",
+                                    }
+                                sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update a chief complaint
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/ChiefComplaint" }
+        delete:
+            tags: [Chief Complaints]
+            summary: Remove a chief complaint
+            responses:
+                "204": { description: Deleted }
+
+    # ── HISTORY ───────────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/history:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [History]
+            summary: Get H/O record
+            responses:
+                "200":
+                    description: Get H/O record
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/History" }
+        put:
+            tags: [History]
+            summary: Create or replace H/O record
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                htn: { type: boolean }
+                                dm: { type: boolean }
+                                copd: { type: boolean }
+                                ihd: { type: boolean }
+                                ckd: { type: boolean }
+                                cld: { type: boolean }
+                                tobaccoChewing: { type: boolean }
+                                smoking: { type: boolean }
+                                cvd: { type: boolean }
+                                asthma: { type: boolean }
+                                malignancy: { type: boolean }
+                                allergy: { type: boolean }
+                                psychiatricDisorder: { type: boolean }
+                                drugAbuse: { type: boolean }
+                                depression: { type: boolean }
+                                otherNotes: { type: string }
+            responses:
+                "200":
+                    description: Create or replace H/O record
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/History" }
+
+    # ── EXAMINATIONS ──────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/examinations:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [Examinations]
+            summary: List O/E entries
+            responses:
+                "200":
+                    description: List O/E entries
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    { $ref: "#/components/schemas/Examination" }
+        post:
+            tags: [Examinations]
+            summary: Add O/E entry
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [parameter]
+                            properties:
+                                parameter: { type: string, example: "BP" }
+                                value: { type: string, example: "120/80" }
+                                unit: { type: string, example: "mmHg" }
+                                sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Add O/E entry
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Examination" }
+
+    /prescriptions/{prescriptionId}/examinations/{id}:
+        parameters:
+            - { $ref: "#/components/parameters/prescriptionId" }
+            - { $ref: "#/components/parameters/id" }
+        patch:
+            tags: [Examinations]
+            summary: Update O/E entry
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                value: { type: string }
+                                unit: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update O/E entry
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Examination" }
+        delete:
+            tags: [Examinations]
+            summary: Remove O/E entry
+            responses:
+                "204": { description: Deleted }
+
+    # ── DIAGNOSES ─────────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/diagnoses:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [Diagnoses]
+            summary: List diagnoses
+            responses:
+                "200":
+                    description: List diagnoses
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    { $ref: "#/components/schemas/Diagnosis" }
+        post:
+            tags: [Diagnoses]
+            summary: Add diagnosis
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [diagnosisText]
+                            properties:
+                                diagnosisText: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Add diagnosis
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Diagnosis" }
+
+    /prescriptions/{prescriptionId}/diagnoses/{id}:
+        parameters:
+            - { $ref: "#/components/parameters/prescriptionId" }
+            - { $ref: "#/components/parameters/id" }
+        patch:
+            tags: [Diagnoses]
+            summary: Update diagnosis
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                diagnosisText: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update diagnosis
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Diagnosis" }
+        delete:
+            tags: [Diagnoses]
+            summary: Remove diagnosis
+            responses:
+                "204": { description: Deleted }
+
+    # ── INVESTIGATIONS ────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/investigations:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [Investigations]
+            summary: List investigations
+            responses:
+                "200":
+                    description: List investigations
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    {
+                                        $ref: "#/components/schemas/Investigation",
+                                    }
+        post:
+            tags: [Investigations]
+            summary: Add investigation
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [investigationName]
+                            properties:
+                                investigationName: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Add investigation
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/Investigation" }
+
+    /prescriptions/{prescriptionId}/investigations/{id}:
+        parameters:
+            - { $ref: "#/components/parameters/prescriptionId" }
+            - { $ref: "#/components/parameters/id" }
+        patch:
+            tags: [Investigations]
+            summary: Update investigation
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                investigationName: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update investigation
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/Investigation" }
+        delete:
+            tags: [Investigations]
+            summary: Remove investigation
+            responses:
+                "204": { description: Deleted }
+
+    # ── RX ITEMS ──────────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/rx-items:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [Rx Items]
+            summary: List Rx drug items
+            responses:
+                "200":
+                    description: List Rx drug items
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: "#/components/schemas/RxItem" }
+        post:
+            tags: [Rx Items]
+            summary: Add Rx drug item
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [itemNo]
+                            properties:
+                                drugId: { type: string }
+                                itemNo: { type: integer }
+                                customBrand: { type: string }
+                                dose: { type: string, example: "1+1+1" }
+                                instruction:
+                                    { type: string, example: "খাবার পর" }
+                                duration: { type: string, example: "৭ দিন" }
+                                sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Add Rx drug item
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/RxItem" }
+
+    /prescriptions/{prescriptionId}/rx-items/{id}:
+        parameters:
+            - { $ref: "#/components/parameters/prescriptionId" }
+            - { $ref: "#/components/parameters/id" }
+        patch:
+            tags: [Rx Items]
+            summary: Update Rx item
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                dose: { type: string }
+                                instruction: { type: string }
+                                duration: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update Rx item
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/RxItem" }
+        delete:
+            tags: [Rx Items]
+            summary: Remove Rx item
+            responses:
+                "204": { description: Deleted }
+
+    # ── ADVICE ────────────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/advices:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [Advice]
+            summary: List prescription advices
+            responses:
+                "200":
+                    description: List prescription advices
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    {
+                                        $ref: "#/components/schemas/PrescriptionAdvice",
+                                    }
+        post:
+            tags: [Advice]
+            summary: Add advice entry
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                adviceText: { type: string }
+                                nextVisitDate: { type: string }
+                                fee: { type: number }
+                                visitNo: { type: integer }
+                                doctorContact: { type: string }
+                                emergencyContact: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Add advice entry
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: "#/components/schemas/PrescriptionAdvice",
+                                }
+
+    /prescriptions/{prescriptionId}/advices/{id}:
+        parameters:
+            - { $ref: "#/components/parameters/prescriptionId" }
+            - { $ref: "#/components/parameters/id" }
+        patch:
+            tags: [Advice]
+            summary: Update advice entry
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                adviceText: { type: string }
+                                nextVisitDate: { type: string }
+                                fee: { type: number }
+                                visitNo: { type: integer }
+                                doctorContact: { type: string }
+                                emergencyContact: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update advice entry
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: "#/components/schemas/PrescriptionAdvice",
+                                }
+        delete:
+            tags: [Advice]
+            summary: Remove advice entry
+            responses:
+                "204": { description: Deleted }
+
+    # ── REPORT ENTRIES ────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/reports:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [Report Entries]
+            summary: List report entries
+            responses:
+                "200":
+                    description: List report entries
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    { $ref: "#/components/schemas/ReportEntry" }
+        post:
+            tags: [Report Entries]
+            summary: Add report entry
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [reportName]
+                            properties:
+                                reportDate: { type: string, format: date }
+                                reportName: { type: string }
+                                resultValue: { type: string }
+                                unit: { type: string }
+            responses:
+                "201":
+                    description: Add report entry
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/ReportEntry" }
+
+    /prescriptions/{prescriptionId}/reports/{id}:
+        parameters:
+            - { $ref: "#/components/parameters/prescriptionId" }
+            - { $ref: "#/components/parameters/id" }
+        patch:
+            tags: [Report Entries]
+            summary: Update report entry
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                reportDate: { type: string, format: date }
+                                reportName: { type: string }
+                                resultValue: { type: string }
+                                unit: { type: string }
+            responses:
+                "200":
+                    description: Update report entry
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/ReportEntry" }
+        delete:
+            tags: [Report Entries]
+            summary: Remove report entry
+            responses:
+                "204": { description: Deleted }
+
+    # ── BMI ───────────────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/bmi:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [BMI]
+            summary: Get BMI record
+            responses:
+                "200":
+                    description: Get BMI record
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/BmiRecord" }
+        put:
+            tags: [BMI]
+            summary: Create or update BMI record (auto-calculates BMI)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                weightKg: { type: number }
+                                heightFeet: { type: number }
+                                heightInches: { type: number }
+                                insulin: { type: number }
+                                qScore: { type: number }
+                                wwi: { type: number }
+                                bild: { type: number }
+            responses:
+                "200":
+                    description: Create or update BMI record (auto-calculates BMI)
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/BmiRecord" }
+
+    # ── DRUG HISTORY ──────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/drug-history:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [Drug History]
+            summary: List drug history entries
+            responses:
+                "200":
+                    description: entries
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    { $ref: "#/components/schemas/DrugHistory" }
+        post:
+            tags: [Drug History]
+            summary: Add drug history entry
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [drugName]
+                            properties:
+                                drugName: { type: string }
+                                details: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Add drug history entry
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/DrugHistory" }
+
+    /prescriptions/{prescriptionId}/drug-history/{id}:
+        parameters:
+            - { $ref: "#/components/parameters/prescriptionId" }
+            - { $ref: "#/components/parameters/id" }
+        patch:
+            tags: [Drug History]
+            summary: Update drug history entry
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                drugName: { type: string }
+                                details: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update drug history entry
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/DrugHistory" }
+        delete:
+            tags: [Drug History]
+            summary: Remove drug history entry
+            responses:
+                "204": { description: Deleted }
+
+    # ── PLANS ─────────────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/plans:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [Plans]
+            summary: List plan entries
+            responses:
+                "200":
+                    description: List plan entries
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: "#/components/schemas/Plan" }
+        post:
+            tags: [Plans]
+            summary: Add plan entry
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [planText]
+                            properties:
+                                planText: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Add plan entry
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Plan" }
+
+    /prescriptions/{prescriptionId}/plans/{id}:
+        parameters:
+            - { $ref: "#/components/parameters/prescriptionId" }
+            - { $ref: "#/components/parameters/id" }
+        patch:
+            tags: [Plans]
+            summary: Update plan entry
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                planText: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update plan entry
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Plan" }
+        delete:
+            tags: [Plans]
+            summary: Remove plan entry
+            responses:
+                "204": { description: Deleted }
+
+    # ── NOTES ─────────────────────────────────────────────────────
+    /prescriptions/{prescriptionId}/notes:
+        parameters: [{ $ref: "#/components/parameters/prescriptionId" }]
+        get:
+            tags: [Notes]
+            summary: List notes
+            responses:
+                "200":
+                    description: List notes
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: "#/components/schemas/Note" }
+        post:
+            tags: [Notes]
+            summary: Add note
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [noteText]
+                            properties:
+                                noteText: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Add note
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Note" }
+
+    /prescriptions/{prescriptionId}/notes/{id}:
+        parameters:
+            - { $ref: "#/components/parameters/prescriptionId" }
+            - { $ref: "#/components/parameters/id" }
+        patch:
+            tags: [Notes]
+            summary: Update note
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                noteText: { type: string }
+                                sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update note
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Note" }
+        delete:
+            tags: [Notes]
+            summary: Remove note
+            responses:
+                "204": { description: Deleted }
+
+    # ── DRUG DATABASE ─────────────────────────────────────────────
+    /drugs:
+        get:
+            tags: [Drug Database]
+            summary: Search/list drugs
+            parameters:
+                - { $ref: "#/components/parameters/page" }
+                - { $ref: "#/components/parameters/limit" }
+                - name: q
+                  in: query
+                  description: Search by brand or generic name
+                  schema: { type: string }
+                - name: form
+                  in: query
+                  schema: { $ref: "#/components/schemas/DrugForm" }
+                - name: activeOnly
+                  in: query
+                  schema: { type: boolean, default: true }
+            responses:
+                "200":
+                    description: Search/list drugs
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        {
+                                            type: array,
+                                            items:
+                                                {
+                                                    $ref: "#/components/schemas/Drug",
+                                                },
+                                        }
+                                    meta:
+                                        {
+                                            $ref: "#/components/schemas/PaginatedMeta",
+                                        }
+        post:
+            tags: [Drug Database]
+            summary: Add drug to catalogue (Admin)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [brandName]
+                            properties:
+                                brandName: { type: string }
+                                genericName: { type: string }
+                                drugClass: { type: string }
+                                strength: { type: string }
+                                form: { $ref: "#/components/schemas/DrugForm" }
+            responses:
+                "201":
+                    description: Add drug to catalogue (Admin)
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Drug" }
+
+    /drugs/{id}:
+        parameters: [{ $ref: "#/components/parameters/id" }]
+        get:
+            tags: [Drug Database]
+            summary: Get drug by ID
+            responses:
+                "200":
+                    description: Get drug by ID
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Drug" }
+        patch:
+            tags: [Drug Database]
+            summary: Update drug (Admin)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                brandName: { type: string }
+                                genericName: { type: string }
+                                drugClass: { type: string }
+                                strength: { type: string }
+                                form: { $ref: "#/components/schemas/DrugForm" }
+                                isActive: { type: boolean }
+            responses:
+                "200":
+                    description: Update drug (Admin)
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Drug" }
+        delete:
+            tags: [Drug Database]
+            summary: Deactivate drug (Admin — soft delete)
+            responses:
+                "200": { description: Drug deactivated }
+
+    # ── ADVICE TEMPLATES ──────────────────────────────────────────
+    /templates/advice:
+        get:
+            tags: [Templates – Advice]
+            summary: List advice templates (own + shared)
+            responses:
+                "200":
+                    description: List advice templates (own + shared)
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    {
+                                        $ref: "#/components/schemas/AdviceTemplate",
+                                    }
+        post:
+            tags: [Templates – Advice]
+            summary: Create advice template
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [templateName, adviceText]
+                            properties:
+                                templateName: { type: string }
+                                adviceText: { type: string }
+                                isShared: { type: boolean }
+            responses:
+                "201":
+                    description: Create advice template
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/AdviceTemplate" }
+
+    /templates/advice/{id}:
+        parameters: [{ $ref: "#/components/parameters/id" }]
+        get:
+            tags: [Templates – Advice]
+            summary: Get advice template
+            responses:
+                "200":
+                    description: Get advice template
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/AdviceTemplate" }
+        patch:
+            tags: [Templates – Advice]
+            summary: Update advice template
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                templateName: { type: string }
+                                adviceText: { type: string }
+                                isShared: { type: boolean }
+            responses:
+                "200":
+                    description: Update advice template
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/AdviceTemplate" }
+        delete:
+            tags: [Templates – Advice]
+            summary: Delete advice template
+            responses:
+                "204": { description: Deleted }
+
+    /templates/advice/{id}/apply:
+        post:
+            tags: [Templates – Advice]
+            summary: Apply advice template to a prescription
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [prescriptionId]
+                            properties:
+                                prescriptionId: { type: string }
+            responses:
+                "200": { description: Template applied }
+
+    # ── DRUG TEMPLATES ────────────────────────────────────────────
+    /templates/drug:
+        get:
+            tags: [Templates – Drug]
+            summary: List drug templates
+            responses:
+                "200":
+                    description: List drug templates
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    {
+                                        $ref: "#/components/schemas/DrugTemplate",
+                                    }
+        post:
+            tags: [Templates – Drug]
+            summary: Create drug template with items
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [templateName]
+                            properties:
+                                templateName: { type: string }
+                                isShared: { type: boolean }
+                                items:
+                                    type: array
+                                    items:
+                                        type: object
+                                        properties:
+                                            drugId: { type: string }
+                                            customBrand: { type: string }
+                                            dose: { type: string }
+                                            instruction: { type: string }
+                                            duration: { type: string }
+                                            sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Create drug template with items
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/DrugTemplate" }
+
+    /templates/drug/{id}:
+        parameters: [{ $ref: "#/components/parameters/id" }]
+        get:
+            tags: [Templates – Drug]
+            summary: Get drug template with items
+            responses:
+                "200":
+                    description: Get drug template with items
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/DrugTemplate" }
+        patch:
+            tags: [Templates – Drug]
+            summary: Update drug template
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                templateName: { type: string }
+                                isShared: { type: boolean }
+                                items:
+                                    type: array
+                                    items:
+                                        type: object
+                                        properties:
+                                            drugId: { type: string }
+                                            customBrand: { type: string }
+                                            dose: { type: string }
+                                            instruction: { type: string }
+                                            duration: { type: string }
+                                            sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update drug template
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/DrugTemplate" }
+        delete:
+            tags: [Templates – Drug]
+            summary: Delete drug template
+            responses:
+                "204": { description: Deleted }
+
+    /templates/drug/{id}/apply:
+        post:
+            tags: [Templates – Drug]
+            summary: Apply drug template to prescription Rx
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [prescriptionId]
+                            properties:
+                                prescriptionId: { type: string }
+            responses:
+                "200": { description: Template applied }
+
+    # ── TREATMENT TEMPLATES ───────────────────────────────────────
+    /templates/treatment:
+        get:
+            tags: [Templates – Treatment]
+            summary: List treatment templates
+            responses:
+                "200":
+                    description: List treatment templates
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    {
+                                        $ref: "#/components/schemas/TreatmentTemplate",
+                                    }
+        post:
+            tags: [Templates – Treatment]
+            summary: Create treatment template
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [templateName, treatmentNotes]
+                            properties:
+                                templateName: { type: string }
+                                treatmentNotes: { type: string }
+                                isShared: { type: boolean }
+            responses:
+                "201":
+                    description: Create treatment template
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: "#/components/schemas/TreatmentTemplate",
+                                }
+
+    /templates/treatment/{id}:
+        parameters: [{ $ref: "#/components/parameters/id" }]
+        get:
+            tags: [Templates – Treatment]
+            summary: Get treatment template
+            responses:
+                "200":
+                    description: Get treatment template
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: "#/components/schemas/TreatmentTemplate",
+                                }
+        patch:
+            tags: [Templates – Treatment]
+            summary: Update treatment template
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                templateName: { type: string }
+                                treatmentNotes: { type: string }
+                                isShared: { type: boolean }
+            responses:
+                "200":
+                    description: Update treatment template
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: "#/components/schemas/TreatmentTemplate",
+                                }
+        delete:
+            tags: [Templates – Treatment]
+            summary: Delete treatment template
+            responses:
+                "204": { description: Deleted }
+
+    /templates/treatment/{id}/apply:
+        post:
+            tags: [Templates – Treatment]
+            summary: Apply treatment template to prescription
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [prescriptionId]
+                            properties:
+                                prescriptionId: { type: string }
+            responses:
+                "200": { description: Template applied }
+
+    # ── PRESCRIPTION TEMPLATES ────────────────────────────────────
+    /templates/prescription:
+        get:
+            tags: [Templates – Prescription]
+            summary: List prescription templates
+            responses:
+                "200":
+                    description: List prescription templates
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    {
+                                        $ref: "#/components/schemas/PrescriptionTemplate",
+                                    }
+        post:
+            tags: [Templates – Prescription]
+            summary: Create prescription template
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [templateName]
+                            properties:
+                                templateName: { type: string }
+                                isShared: { type: boolean }
+                                items:
+                                    type: array
+                                    items:
+                                        type: object
+                                        properties:
+                                            drugId: { type: string }
+                                            customBrand: { type: string }
+                                            diagnosisText: { type: string }
+                                            adviceText: { type: string }
+                                            dose: { type: string }
+                                            instruction: { type: string }
+                                            duration: { type: string }
+                                            sortOrder: { type: integer }
+            responses:
+                "201":
+                    description: Create prescription template
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: "#/components/schemas/PrescriptionTemplate",
+                                }
+
+    /templates/prescription/{id}:
+        parameters: [{ $ref: "#/components/parameters/id" }]
+        get:
+            tags: [Templates – Prescription]
+            summary: Get prescription template
+            responses:
+                "200":
+                    description: Get prescription template
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: "#/components/schemas/PrescriptionTemplate",
+                                }
+        patch:
+            tags: [Templates – Prescription]
+            summary: Update prescription template
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                templateName: { type: string }
+                                isShared: { type: boolean }
+                                items:
+                                    type: array
+                                    items:
+                                        type: object
+                                        properties:
+                                            drugId: { type: string }
+                                            customBrand: { type: string }
+                                            diagnosisText: { type: string }
+                                            adviceText: { type: string }
+                                            dose: { type: string }
+                                            instruction: { type: string }
+                                            duration: { type: string }
+                                            sortOrder: { type: integer }
+            responses:
+                "200":
+                    description: Update prescription template
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: "#/components/schemas/PrescriptionTemplate",
+                                }
+        delete:
+            tags: [Templates – Prescription]
+            summary: Delete prescription template
+            responses:
+                "204": { description: Deleted }
+
+    /templates/prescription/{id}/apply:
+        post:
+            tags: [Templates – Prescription]
+            summary: Apply full prescription template
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [prescriptionId]
+                            properties:
+                                prescriptionId: { type: string }
+            responses:
+                "200": { description: Template applied }
+
+    # ── REFERRAL AGENTS ───────────────────────────────────────────
+    /referral-agents:
+        get:
+            tags: [Referral Agents]
+            summary: List referral agents (Admin)
+            parameters:
+                - { $ref: "#/components/parameters/page" }
+                - { $ref: "#/components/parameters/limit" }
+                - name: agentType
+                  in: query
+                  schema: { $ref: "#/components/schemas/ReferralAgentType" }
+                - name: isActive
+                  in: query
+                  schema: { type: boolean }
+            responses:
+                "200":
+                    description: List referral agents (Admin)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        {
+                                            type: array,
+                                            items:
+                                                {
+                                                    $ref: "#/components/schemas/ReferralAgent",
+                                                },
+                                        }
+                                    meta:
+                                        {
+                                            $ref: "#/components/schemas/PaginatedMeta",
+                                        }
+        post:
+            tags: [Referral Agents]
+            summary: Create referral agent (Admin)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [name]
+                            properties:
+                                name: { type: string }
+                                phone: { type: string }
+                                email: { type: string, format: email }
+                                organization: { type: string }
+                                agentType:
+                                    {
+                                        $ref: "#/components/schemas/ReferralAgentType",
+                                    }
+                                commissionType:
+                                    {
+                                        $ref: "#/components/schemas/CommissionType",
+                                    }
+                                commissionValue: { type: number }
+                                notes: { type: string }
+            responses:
+                "201":
+                    description: Create referral agent (Admin)
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/ReferralAgent" }
+
+    /referral-agents/{id}:
+        parameters: [{ $ref: "#/components/parameters/id" }]
+        get:
+            tags: [Referral Agents]
+            summary: Get referral agentGet referral agent
+            responses:
+                "200":
+                    description: Get referral agent
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/ReferralAgent" }
+        patch:
+            tags: [Referral Agents]
+            summary: Update referral agent
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name: { type: string }
+                                phone: { type: string }
+                                email: { type: string }
+                                organization: { type: string }
+                                agentType:
+                                    {
+                                        $ref: "#/components/schemas/ReferralAgentType",
+                                    }
+                                commissionType:
+                                    {
+                                        $ref: "#/components/schemas/CommissionType",
+                                    }
+                                commissionValue: { type: number }
+                                isActive: { type: boolean }
+                                notes: { type: string }
+            responses:
+                "200":
+                    description: Update referral agent
+                    content:
+                        application/json:
+                            schema:
+                                { $ref: "#/components/schemas/ReferralAgent" }
+        delete:
+            tags: [Referral Agents]
+            summary: Deactivate referral agent (soft)
+            responses:
+                "200": { description: Agent deactivated }
+
+    /referral-agents/{id}/summary:
+        get:
+            tags: [Referral Agents]
+            summary: Get agent commission summary (total earned, paid, unpaid)
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            responses:
+                "200":
+                    description: Get agent commission summary (total earned, paid, unpaid)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    agentId: { type: string }
+                                    totalReferrals: { type: integer }
+                                    totalEarned: { type: number }
+                                    totalPaid: { type: number }
+                                    totalUnpaid: { type: number }
+
+    # ── REFERRALS ─────────────────────────────────────────────────
+    /referrals:
+        get:
+            tags: [Referrals]
+            summary: List referrals (Admin)
+            parameters:
+                - { $ref: "#/components/parameters/page" }
+                - { $ref: "#/components/parameters/limit" }
+                - name: agentId
+                  in: query
+                  schema: { type: string }
+                - name: isPaid
+                  in: query
+                  schema: { type: boolean }
+            responses:
+                "200":
+                    description: List referrals (Admin)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        {
+                                            type: array,
+                                            items:
+                                                {
+                                                    $ref: "#/components/schemas/Referral",
+                                                },
+                                        }
+                                    meta:
+                                        {
+                                            $ref: "#/components/schemas/PaginatedMeta",
+                                        }
+        post:
+            tags: [Referrals]
+            summary: Create referral (link agent to appointment)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [agentId, appointmentId]
+                            properties:
+                                agentId: { type: string }
+                                appointmentId: { type: string }
+                                notes: { type: string }
+            responses:
+                "201":
+                    description: Create referral (link agent to appointment)
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Referral" }
+
+    /referrals/{id}:
+        parameters: [{ $ref: "#/components/parameters/id" }]
+        get:
+            tags: [Referrals]
+            summary: Get referral by ID
+            responses:
+                "200":
+                    description: Get referral by ID
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Referral" }
+
+    /referrals/{id}/mark-paid:
+        patch:
+            tags: [Referrals]
+            summary: Mark commission as paid (Admin)
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                paidAt: { type: string, format: date-time }
+                                notes: { type: string }
+            responses:
+                "200":
+                    description: Mark commission as paid (Admin)
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Referral" }
+
+    # ── PAYMENTS ──────────────────────────────────────────────────
+    /payments:
+        get:
+            tags: [Payments]
+            summary: List payments
+            parameters:
+                - { $ref: "#/components/parameters/page" }
+                - { $ref: "#/components/parameters/limit" }
+                - name: status
+                  in: query
+                  schema: { $ref: "#/components/schemas/PaymentStatus" }
+                - name: method
+                  in: query
+                  schema: { $ref: "#/components/schemas/PaymentMethod" }
+                - name: patientId
+                  in: query
+                  schema: { type: string }
+            responses:
+                "200":
+                    description: List payments
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        {
+                                            type: array,
+                                            items:
+                                                {
+                                                    $ref: "#/components/schemas/Payment",
+                                                },
+                                        }
+                                    meta:
+                                        {
+                                            $ref: "#/components/schemas/PaginatedMeta",
+                                        }
+        post:
+            tags: [Payments]
+            summary: Create payment record
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [appointmentId, patientId, amount, method]
+                            properties:
+                                appointmentId: { type: string }
+                                patientId: { type: string }
+                                amount: { type: number }
+                                method:
+                                    {
+                                        $ref: "#/components/schemas/PaymentMethod",
+                                    }
+                                phoneNumber: { type: string }
+                                transactionId: { type: string }
+                                paymentProof: { type: string }
+                                note: { type: string }
+            responses:
+                "201":
+                    description: Create payment record
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Payment" }
+
+    /payments/{id}:
+        parameters: [{ $ref: "#/components/parameters/id" }]
+        get:
+            tags: [Payments]
+            summary: Get payment by ID
+            responses:
+                "200":
+                    description: Get payment by ID
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Payment" }
+        patch:
+            tags: [Payments]
+            summary: Update payment status
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                status:
+                                    {
+                                        $ref: "#/components/schemas/PaymentStatus",
+                                    }
+                                transactionId: { type: string }
+                                paymentProof: { type: string }
+                                paidAt: { type: string, format: date-time }
+                                note: { type: string }
+            responses:
+                "200":
+                    description: Update payment status
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Payment" }
+
+    /payments/{id}/refund:
+        post:
+            tags: [Payments]
+            summary: Process refund (Admin)
+            parameters: [{ $ref: "#/components/parameters/id" }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                note: { type: string }
+            responses:
+                "200":
+                    description: Refund processed
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/Payment" }
+
+    # ── AUDIT LOGS ────────────────────────────────────────────────
+    /audit-logs:
+        get:
+            tags: [Audit Logs]
+            summary: List audit logs (Admin only)
+            parameters:
+                - { $ref: "#/components/parameters/page" }
+                - { $ref: "#/components/parameters/limit" }
+                - name: userId
+                  in: query
+                  schema: { type: string }
+                - name: action
+                  in: query
+                  schema:
+                      {
+                          type: string,
+                          enum: [CREATE, UPDATE, DELETE, LOGIN, PRINT],
+                      }
+                - name: tableName
+                  in: query
+                  schema: { type: string }
+                - name: from
+                  in: query
+                  schema: { type: string, format: date }
+                - name: to
+                  in: query
+                  schema: { type: string, format: date }
+            responses:
+                "200":
+                    description: List audit logs (Admin only)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        {
+                                            type: array,
+                                            items:
+                                                {
+                                                    $ref: "#/components/schemas/AuditLog",
+                                                },
+                                        }
+                                    meta:
+                                        {
+                                            $ref: "#/components/schemas/PaginatedMeta",
+                                        }
+                "403": { $ref: "#/components/responses/Forbidden" }
+
+    /audit-logs/{id}:
+        parameters: [{ $ref: "#/components/parameters/id" }]
+        get:
+            tags: [Audit Logs]
+            summary: Get single audit log entry (Admin only)
+            responses:
+                "200":
+                    description: Get single audit log entry (Admin only)
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/AuditLog" }
+                "403": { $ref: "#/components/responses/Forbidden" }
+                "404": { $ref: "#/components/responses/NotFound" }

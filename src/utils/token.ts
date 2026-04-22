@@ -82,6 +82,11 @@ const decodeAccessToken = (token: string): AccessTokenPayload =>
 const decodeRefreshToken = (token: string): RefreshTokenPayload =>
     jwt.verify(token, JWT_REFRESH_SECRET) as RefreshTokenPayload;
 
+const hashOtp = (otp: string): string =>
+    crypto.createHash("sha256").update(otp).digest("hex");
+
+const verifyOtp = (plain: string, hash: string): boolean =>
+    crypto.timingSafeEqual(Buffer.from(hashOtp(plain)), Buffer.from(hash));
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export {
@@ -96,4 +101,6 @@ export {
     isTokenExpired,
     decodeAccessToken,
     decodeRefreshToken,
+    hashOtp,
+    verifyOtp,
 };

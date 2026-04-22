@@ -1,7 +1,5 @@
 /** @format */
 
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import {
     ChangePasswordInput,
     ForgotPasswordInput,
@@ -17,28 +15,17 @@ import {
     VerificationCodeType,
     VerificationStatus,
 } from "../../generated/prisma/enums";
-
-const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET!;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
-const BCRYPT_ROUNDS = 12;
-const OTP_EXPIRY_MINUTES = 15;
-
-// ─── Token Helpers ────────────────────────────────────────────────────────────
-
-const generateAccessToken = (payload: {
-    id: string;
-    role: string;
-    email: string;
-}) => jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: "15m" });
-
-const generateRefreshToken = (payload: { id: string; email: string }) =>
-    jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: "7d" });
-
-const generateOtp = (): string =>
-    Math.floor(100000 + Math.random() * 900000).toString();
-
-const otpExpiresAt = (): Date =>
-    new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+import {
+    generateAccessToken,
+    generateOtp,
+    generateRefreshToken,
+    getOtpExpiresAt,
+    hashOtp,
+    hashPassword,
+    verifyOtp,
+    verifyPassword,
+    verifyRefreshToken,
+} from "../../utils/token";
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 
@@ -52,7 +39,7 @@ export const registerService = async (data: RegisterInput) => {
 
     if (existing) throw new Error("EMAIL_TAKEN");
 
-    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const hashedPassword = await hashPassword(password);
 
     const user = await prisma.user.create({
         data: {
@@ -64,17 +51,11 @@ export const registerService = async (data: RegisterInput) => {
             status: AccountStatus.PENDING,
             verified: false,
         },
-        select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-        },
+        select: { id: true, name: true, email: true, role: true },
     });
 
-    // ── Create OTP ────────────────────────────────────────────────────────────
     const otp = generateOtp();
-    const hashedOtp = await bcrypt.hash(otp, 10);
+    const hashedOtp = hashOtp(otp);
 
     await prisma.verificationCode.create({
         data: {
@@ -82,12 +63,11 @@ export const registerService = async (data: RegisterInput) => {
             code: hashedOtp,
             type: VerificationCodeType.ACCOUNT_ACTIVATION,
             status: VerificationStatus.PENDING,
-            expiresAt: otpExpiresAt(),
+            expiresAt: getOtpExpiresAt(),
         },
     });
 
-    // TODO: send OTP via email service
-    // await emailService.sendVerificationEmail(user.email, otp);
+    // TODO: await emailService.sendVerificationEmail(user.email, otp);
     console.log(`[DEV] OTP for ${email}: ${otp}`);
 
     return user;
@@ -100,7 +80,7 @@ export const verifyEmailService = async (data: VerifyEmailInput) => {
 
     const user = await prisma.user.findUnique({
         where: { email },
-        select: { id: true, verified: true, status: true },
+        select: { id: true, verified: true },
     });
 
     if (!user) throw new Error("USER_NOT_FOUND");
@@ -118,7 +98,7 @@ export const verifyEmailService = async (data: VerifyEmailInput) => {
 
     if (!verificationCode) throw new Error("OTP_INVALID_OR_EXPIRED");
 
-    const isMatch = await bcrypt.compare(code, verificationCode.code);
+    const isMatch = verifyOtp(code, verificationCode.code);
     if (!isMatch) throw new Error("OTP_INVALID_OR_EXPIRED");
 
     await prisma.$transaction([
@@ -155,34 +135,32 @@ export const loginService = async (data: LoginInput) => {
 
     if (!user) throw new Error("INVALID_CREDENTIALS");
 
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    const passwordMatch = await verifyPassword(password, user.password);
     if (!passwordMatch) throw new Error("INVALID_CREDENTIALS");
 
     if (!user.verified || user.status === AccountStatus.PENDING)
         throw new Error("EMAIL_NOT_VERIFIED");
-
     if (user.status === AccountStatus.SUSPENDED)
         throw new Error("ACCOUNT_SUSPENDED");
-
     if (user.status === AccountStatus.INACTIVE)
         throw new Error("ACCOUNT_INACTIVE");
 
-    const tokenPayload = { id: user.id, role: user.role, email: user.email };
-    const accessToken = generateAccessToken(tokenPayload);
+    const accessToken = generateAccessToken({
+        userId: user.id,
+        role: user.role,
+        email: user.email,
+        isEmailVerified: user.verified,
+    });
     const refreshToken = generateRefreshToken({
-        id: user.id,
+        userId: user.id,
         email: user.email,
     });
 
     await prisma.refresh.create({
-        data: {
-            userId: user.id,
-            email: user.email,
-            token: refreshToken,
-        },
+        data: { userId: user.id, email: user.email, token: refreshToken },
     });
 
-    const { password: _, ...safeUser } = user;
+    const { password: _pw, ...safeUser } = user;
 
     return { accessToken, refreshToken, user: safeUser };
 };
@@ -192,27 +170,28 @@ export const loginService = async (data: LoginInput) => {
 export const refreshTokenService = async (data: RefreshTokenInput) => {
     const { refreshToken } = data;
 
-    // Verify JWT signature first
-    let decoded: { id: string; email: string };
+    let decoded: { userId: string; email: string };
     try {
-        decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as {
-            id: string;
-            email: string;
-        };
+        decoded = verifyRefreshToken(refreshToken);
     } catch {
         throw new Error("REFRESH_TOKEN_INVALID");
     }
 
-    // Check it exists in DB (rotation guard)
     const stored = await prisma.refresh.findFirst({
-        where: { token: refreshToken, userId: decoded.id },
+        where: { token: refreshToken, userId: decoded.userId },
     });
-
     if (!stored) throw new Error("REFRESH_TOKEN_INVALID");
 
     const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
-        select: { id: true, name: true, email: true, role: true, status: true },
+        where: { id: decoded.userId },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            verified: true,
+            status: true,
+        },
     });
 
     if (!user || user.status !== AccountStatus.ACTIVE)
@@ -222,21 +201,18 @@ export const refreshTokenService = async (data: RefreshTokenInput) => {
     await prisma.refresh.delete({ where: { id: stored.id } });
 
     const newAccessToken = generateAccessToken({
-        id: user.id,
+        userId: user.id,
         role: user.role,
         email: user.email,
+        isEmailVerified: user.verified,
     });
     const newRefreshToken = generateRefreshToken({
-        id: user.id,
+        userId: user.id,
         email: user.email,
     });
 
     await prisma.refresh.create({
-        data: {
-            userId: user.id,
-            email: user.email,
-            token: newRefreshToken,
-        },
+        data: { userId: user.id, email: user.email, token: newRefreshToken },
     });
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken, user };
@@ -245,10 +221,7 @@ export const refreshTokenService = async (data: RefreshTokenInput) => {
 // ─── Logout ───────────────────────────────────────────────────────────────────
 
 export const logoutService = async (userId: string, refreshToken: string) => {
-    await prisma.refresh.deleteMany({
-        where: { userId, token: refreshToken },
-    });
-
+    await prisma.refresh.deleteMany({ where: { userId, token: refreshToken } });
     return { message: "Logged out successfully." };
 };
 
@@ -257,20 +230,20 @@ export const logoutService = async (userId: string, refreshToken: string) => {
 export const forgotPasswordService = async (data: ForgotPasswordInput) => {
     const { email } = data;
 
+    const GENERIC_RESPONSE = {
+        message:
+            "If this email is registered and active, an OTP has been sent.",
+    };
+
     const user = await prisma.user.findUnique({
         where: { email },
         select: { id: true, verified: true, status: true },
     });
 
-    // Generic response to prevent email enumeration
-    if (!user || !user.verified || user.status !== AccountStatus.ACTIVE) {
-        return {
-            message:
-                "If this email is registered and active, an OTP has been sent.",
-        };
-    }
+    if (!user || !user.verified || user.status !== AccountStatus.ACTIVE)
+        return GENERIC_RESPONSE;
 
-    // Invalidate previous unused reset codes
+    // Invalidate any previous unused reset codes
     await prisma.verificationCode.updateMany({
         where: {
             userId: user.id,
@@ -281,7 +254,7 @@ export const forgotPasswordService = async (data: ForgotPasswordInput) => {
     });
 
     const otp = generateOtp();
-    const hashedOtp = await bcrypt.hash(otp, 10);
+    const hashedOtp = hashOtp(otp);
 
     await prisma.verificationCode.create({
         data: {
@@ -289,18 +262,14 @@ export const forgotPasswordService = async (data: ForgotPasswordInput) => {
             code: hashedOtp,
             type: VerificationCodeType.PASSWORD_RESET,
             status: VerificationStatus.PENDING,
-            expiresAt: otpExpiresAt(),
+            expiresAt: getOtpExpiresAt(),
         },
     });
 
-    // TODO: send OTP via email service
-    // await emailService.sendPasswordResetEmail(email, otp);
+    // TODO: await emailService.sendPasswordResetEmail(email, otp);
     console.log(`[DEV] Reset OTP for ${email}: ${otp}`);
 
-    return {
-        message:
-            "If this email is registered and active, an OTP has been sent.",
-    };
+    return GENERIC_RESPONSE;
 };
 
 // ─── Reset Password ───────────────────────────────────────────────────────────
@@ -312,7 +281,6 @@ export const resetPasswordService = async (data: ResetPasswordInput) => {
         where: { email },
         select: { id: true },
     });
-
     if (!user) throw new Error("OTP_INVALID_OR_EXPIRED");
 
     const verificationCode = await prisma.verificationCode.findFirst({
@@ -324,13 +292,12 @@ export const resetPasswordService = async (data: ResetPasswordInput) => {
         },
         orderBy: { issuedAt: "desc" },
     });
-
     if (!verificationCode) throw new Error("OTP_INVALID_OR_EXPIRED");
 
-    const isMatch = await bcrypt.compare(code, verificationCode.code);
+    const isMatch = verifyOtp(code, verificationCode.code);
     if (!isMatch) throw new Error("OTP_INVALID_OR_EXPIRED");
 
-    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    const hashedPassword = await hashPassword(newPassword);
 
     await prisma.$transaction([
         prisma.verificationCode.update({
@@ -341,14 +308,13 @@ export const resetPasswordService = async (data: ResetPasswordInput) => {
             where: { id: user.id },
             data: { password: hashedPassword },
         }),
-        // Invalidate all refresh tokens on password reset
         prisma.refresh.deleteMany({ where: { userId: user.id } }),
     ]);
 
     return { message: "Password reset successfully." };
 };
 
-// ─── Change Password (authenticated) ─────────────────────────────────────────
+// ─── Change Password ──────────────────────────────────────────────────────────
 
 export const changePasswordService = async (
     userId: string,
@@ -360,20 +326,18 @@ export const changePasswordService = async (
         where: { id: userId },
         select: { id: true, password: true },
     });
-
     if (!user) throw new Error("USER_NOT_FOUND");
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    const isMatch = await verifyPassword(currentPassword, user.password);
     if (!isMatch) throw new Error("CURRENT_PASSWORD_INCORRECT");
 
-    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    const hashedPassword = await hashPassword(newPassword);
 
     await prisma.$transaction([
         prisma.user.update({
             where: { id: userId },
             data: { password: hashedPassword },
         }),
-        // Invalidate all refresh tokens on password change
         prisma.refresh.deleteMany({ where: { userId } }),
     ]);
 

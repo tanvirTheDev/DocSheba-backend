@@ -1,7 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// ─────────────────────────────────────────────────────────────
+// Prisma Schema — Healthcare SaaS Platform
+// ─────────────────────────────────────────────────────────────
 
 generator client {
   provider = "prisma-client"
@@ -11,14 +10,6 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
-// ─────────────────────────────────────────────────────────────
-// Prisma Generator
-// ─────────────────────────────────────────────────────────────
-// generator client {
-//   provider      = "prisma-client-js"
-//   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
-// }
-
 
 // ─────────────────────────────────────────────────────────────
 // ENUMS
@@ -29,6 +20,7 @@ enum Role {
   DOCTOR
   DOCTOR_ASSISTANT
   ADMIN
+  SUPER_ADMIN // SaaS platform owner
 }
 
 enum PaymentMethod {
@@ -53,11 +45,13 @@ enum AccountStatus {
   SUSPENDED
 }
 
-enum AppointmentType {
-  CONSULTATION
-  FOLLOW_UP
-  PRENATAL
-  POSTPARTUM
+enum ServiceType {
+  IN_PERSON     // physical visit at clinic
+  VIDEO_CALL    // live video consultation
+  AUDIO_CALL    // phone / audio only
+  CHAT          // async text chat
+  HOME_VISIT    // doctor visits patient's home
+  REPORT_REVIEW // patient uploads report, doctor reviews async
 }
 
 enum AppointmentStatus {
@@ -116,7 +110,6 @@ enum TemplateType {
   INVESTIGATION
 }
 
-// NEW: duration unit for chief complaints
 enum DurationUnit {
   DAYS
   WEEKS
@@ -124,7 +117,6 @@ enum DurationUnit {
   YEARS
 }
 
-//  referral agent type
 enum ReferralAgentType {
   MARKETING_OFFICER
   CLINIC_MANAGER
@@ -133,11 +125,33 @@ enum ReferralAgentType {
   OTHER
 }
 
-//  commission type
 enum CommissionType {
   FLAT        // fixed BDT amount per patient
   PERCENTAGE  // % of consultation fee
   NONE
+}
+
+// SaaS subscription tiers
+enum PlanTier {
+  FREE
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+// SaaS subscription billing status
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  TRIAL
+  PAST_DUE
+}
+
+// SaaS invoice / billing cycle
+enum BillingCycle {
+  MONTHLY
+  YEARLY
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -175,14 +189,20 @@ model User {
   patientProfile PatientProfile?
   doctorProfile  DoctorProfile?
 
+  // ── Doctor services (what services the doctor offers) ─────
+  doctorServices DoctorService[]
+
   // ── Template ownership ─────────────────────────────────────
   adviceTemplates       AdviceTemplate[]
   drugTemplates         DrugTemplate[]
   treatmentTemplates    TreatmentTemplate[]
   prescriptionTemplates PrescriptionTemplate[]
 
-  // ── Payment reverse relation (🔴 fix: was missing) ────────
+  // ── Payment relations ──────────────────────────────────────
   payments Payment[]
+
+  // ── SaaS subscription (one per clinic owner / admin) ──────
+  subscription Subscription?
 
   // ── Audit ──────────────────────────────────────────────────
   auditLogs AuditLog[]
@@ -193,9 +213,9 @@ model User {
 // ─────────────────────────────────────────────────────────────
 
 model PatientProfile {
-  id          String    @id @default(cuid())
-  userId      String    @unique
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   regNo       String?   @unique
   dateOfBirth DateTime?
@@ -214,9 +234,9 @@ model PatientProfile {
 // ─────────────────────────────────────────────────────────────
 
 model DoctorProfile {
-  id                String  @id @default(cuid())
-  userId            String  @unique
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   specialty         String?
   qualifications    String?
@@ -231,26 +251,46 @@ model DoctorProfile {
 }
 
 // ─────────────────────────────────────────────────────────────
+// DOCTOR SERVICE
+// Per-doctor catalogue of offered services with individual
+// pricing and duration. A doctor can offer multiple service
+// types (e.g. IN_PERSON + VIDEO_CALL) each with its own fee.
+// ─────────────────────────────────────────────────────────────
+
+model DoctorService {
+  id       String @id @default(cuid())
+  doctorId String
+  doctor   User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  serviceType  ServiceType
+  fee          Decimal     @db.Decimal(10, 2)
+  duration     Int         // in minutes e.g. 15 | 30 | 60
+  isActive     Boolean     @default(true)
+  description  String?     // optional note to patient e.g. "Includes prescription"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointments Appointment[]
+
+  @@unique([doctorId, serviceType]) // one config per service type per doctor
+  @@index([doctorId])
+}
+
+// ─────────────────────────────────────────────────────────────
 // REFERRAL AGENT
-// A marketing officer / clinic manager / external agent
-// who refers patients to the clinic. Tracked separately
-// for commission calculation and reporting.
 // ─────────────────────────────────────────────────────────────
 
 model ReferralAgent {
-  id             String            @id @default(cuid())
+  id           String            @id @default(cuid())
+  name         String
+  phone        String?           @unique
+  email        String?           @unique
+  organization String?
+  agentType    ReferralAgentType @default(OTHER)
 
-  name           String
-  phone          String?           @unique
-  email          String?           @unique
-  organization   String?           // hospital / NGO / company they represent
-  agentType      ReferralAgentType @default(OTHER)
-
-  // Commission settings (applied when a referral is created)
   commissionType  CommissionType @default(NONE)
   commissionValue Decimal?       @db.Decimal(8, 2)
-  // FLAT  → fixed BDT amount e.g. 100.00
-  // PERCENTAGE → e.g. 10.00 means 10%
 
   isActive Boolean @default(true)
   notes    String?
@@ -265,28 +305,23 @@ model ReferralAgent {
 
 // ─────────────────────────────────────────────────────────────
 // REFERRAL
-// Links a ReferralAgent to a specific Appointment.
-// Commission values are snapshotted at creation time so
-// future rate changes do not affect past records.
 // ─────────────────────────────────────────────────────────────
 
 model Referral {
-  id            String        @id @default(cuid())
+  id      String        @id @default(cuid())
+  agentId String
+  agent   ReferralAgent @relation(fields: [agentId], references: [id])
 
-  agentId       String
-  agent         ReferralAgent @relation(fields: [agentId], references: [id])
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
-  appointmentId String        @unique   // one referral per appointment
-  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-
-  // Snapshot of commission at time of referral
   commissionType   CommissionType @default(NONE)
   commissionValue  Decimal?       @db.Decimal(8, 2)
-  commissionEarned Decimal?       @db.Decimal(10, 2)  // final calculated amount
+  commissionEarned Decimal?       @db.Decimal(10, 2)
 
-  isPaid  Boolean   @default(false)
-  paidAt  DateTime?
-  notes   String?
+  isPaid Boolean   @default(false)
+  paidAt DateTime?
+  notes  String?
 
   createdAt DateTime @default(now())
 
@@ -295,24 +330,18 @@ model Referral {
 
 // ─────────────────────────────────────────────────────────────
 // APPOINTMENT SERIAL
-// Maintains a daily counter per doctor.
-// When a new appointment is booked, the backend:
-//   1. Upserts this row for (doctorId, today)
-//   2. Increments lastSerial
-//   3. Writes that value into Appointment.serialNo
-// Resets naturally because each new date = new row.
 // ─────────────────────────────────────────────────────────────
 
 model AppointmentSerial {
   id         String   @id @default(cuid())
   doctorId   String
-  serialDate DateTime @db.Date    // date only, no time component
+  serialDate DateTime @db.Date
   lastSerial Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([doctorId, serialDate])  // one counter per doctor per day
+  @@unique([doctorId, serialDate])
   @@index([doctorId])
 }
 
@@ -321,23 +350,24 @@ model AppointmentSerial {
 // ─────────────────────────────────────────────────────────────
 
 model Appointment {
-  id              String            @id @default(cuid())
+  id String @id @default(cuid())
 
-  patientId       String
-  patient         User              @relation("PatientAppointments", fields: [patientId], references: [id])
+  patientId String
+  patient   User   @relation("PatientAppointments", fields: [patientId], references: [id])
 
-  doctorId        String
-  doctor          User              @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  doctorId String
+  doctor   User   @relation("DoctorAppointments", fields: [doctorId], references: [id])
 
-  // Who actually booked (patient self / admin / assistant)
-  bookedById      String?
-  bookedBy        User?             @relation("BookedByUser", fields: [bookedById], references: [id])
+  bookedById String?
+  bookedBy   User?   @relation("BookedByUser", fields: [bookedById], references: [id])
 
-  // Daily token number for this doctor e.g. Serial #7
+  // Service link — which service the patient booked
+  serviceId   String?
+  service     DoctorService? @relation(fields: [serviceId], references: [id])
+  serviceType ServiceType    @default(IN_PERSON)
+
   serialNo        Int?
-
   fee             Int
-  appointmentType AppointmentType   @default(CONSULTATION)
   status          AppointmentStatus @default(PENDING)
   paymentMethod   PaymentMethod     @default(CASH)
   paymentStatus   Boolean           @default(false)
@@ -346,18 +376,25 @@ model Appointment {
   chiefComplaint  String?
   notes           String?
 
+  // ── Video / Audio call fields ──────────────────────────────
+  callRoomId       String?   // Daily.co / Jitsi / Whereby room ID
+  callStartedAt    DateTime?
+  callEndedAt      DateTime?
+  callDurationMin  Int?      // actual minutes consumed
+  callRecordingUrl String?   // link to recorded session (if enabled)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // ── Downstream relations ───────────────────────────────────
   prescription Prescription?
   payments     Payment[]
-  referral     Referral?     // populated only if booked via an agent
+  referral     Referral?
 
   @@index([patientId])
   @@index([doctorId])
   @@index([appointmentDate])
   @@index([doctorId, appointmentDate])
+  @@index([serviceType])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -365,13 +402,12 @@ model Appointment {
 // ─────────────────────────────────────────────────────────────
 
 model Prescription {
-  id               String             @id @default(cuid())
-  appointmentId    String             @unique
-  appointment      Appointment        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  id            String     @id @default(cuid())
+  appointmentId String     @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   doctorId         String
   patientId        String
-
   prescriptionDate DateTime           @default(now())
   status           PrescriptionStatus @default(DRAFT)
   headerTemplate   String?
@@ -380,7 +416,6 @@ model Prescription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // ── Clinical sections ──────────────────────────────────────
   chiefComplaints ChiefComplaint[]
   history         History?
   examinations    Examination[]
@@ -392,7 +427,7 @@ model Prescription {
   bmiRecord       BmiRecord?
   drugHistories   DrugHistory[]
   plans           Plan[]
-  notes           Note[]              // bottom Note section
+  notes           Note[]
 
   @@index([doctorId])
   @@index([patientId])
@@ -409,7 +444,7 @@ model ChiefComplaint {
 
   complaint    String
   duration     String?
-  durationUnit DurationUnit? // 🟡 fix: was free String, now enum
+  durationUnit DurationUnit?
   sortOrder    Int           @default(0)
 }
 
@@ -449,8 +484,7 @@ model Examination {
   prescriptionId String
   prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
-  parameter String  // BP | Pulse | Temp | SpO2 | Heart | Lungs |
-                    // Abd | Anaemia | Jaundice | Cyanosis | Oedema
+  parameter String
   value     String?
   unit      String?
   sortOrder Int     @default(0)
@@ -523,15 +557,15 @@ model RxItem {
   itemNo      Int
   customBrand String?
   dose        String?
-  instruction String?   // e.g. "খাবার পর"
-  duration    String?   // e.g. "২ দিন"
+  instruction String?
+  duration    String?
   sortOrder   Int       @default(0)
 
   @@index([prescriptionId])
 }
 
 // ─────────────────────────────────────────────────────────────
-// ADVICE — PRESCRIPTION ADVICE
+// ADVICE
 // ─────────────────────────────────────────────────────────────
 
 model PrescriptionAdvice {
@@ -576,7 +610,7 @@ model BmiRecord {
   heightFeet    Decimal? @db.Decimal(4, 2)
   heightInches  Decimal? @db.Decimal(4, 2)
   bmiValue      Decimal? @db.Decimal(5, 2)
-  bmiClass      String?  // Underweight | Normal | Overweight | Obese
+  bmiClass      String?
   idealWeightKg Decimal? @db.Decimal(5, 2)
   insulin       Decimal? @db.Decimal(6, 2)
   qScore        Decimal? @db.Decimal(6, 2)
@@ -612,7 +646,7 @@ model Plan {
 }
 
 // ─────────────────────────────────────────────────────────────
-// NOTE  (bottom section visible in screenshot)
+// NOTE
 // ─────────────────────────────────────────────────────────────
 
 model Note {
@@ -628,12 +662,10 @@ model Note {
 // TEMPLATES
 // ─────────────────────────────────────────────────────────────
 
-// ── 1. Advice Template ────────────────────────────────────────
-
 model AdviceTemplate {
-  id           String  @id @default(cuid())
-  doctorId     String
-  doctor       User    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  doctorId String
+  doctor   User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   templateName String
   adviceText   String
@@ -645,12 +677,10 @@ model AdviceTemplate {
   @@index([doctorId])
 }
 
-// ── 2. Drug / Rx Template ─────────────────────────────────────
-
 model DrugTemplate {
-  id           String @id @default(cuid())
-  doctorId     String
-  doctor       User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  doctorId String
+  doctor   User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   templateName String
   isShared     Boolean @default(false)
@@ -678,12 +708,10 @@ model DrugTemplateItem {
   sortOrder   Int @default(0)
 }
 
-// ── 3. Treatment Template ─────────────────────────────────────
-
 model TreatmentTemplate {
-  id           String @id @default(cuid())
-  doctorId     String
-  doctor       User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  doctorId String
+  doctor   User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   templateName   String
   treatmentNotes String
@@ -695,12 +723,10 @@ model TreatmentTemplate {
   @@index([doctorId])
 }
 
-// ── 4. Prescription Template (full preset) ────────────────────
-
 model PrescriptionTemplate {
-  id           String @id @default(cuid())
-  doctorId     String
-  doctor       User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  doctorId String
+  doctor   User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   templateName String
   isShared     Boolean @default(false)
@@ -731,28 +757,27 @@ model PrescriptionTemplateItem {
 }
 
 // ─────────────────────────────────────────────────────────────
-// PAYMENT
+// PAYMENT  (per-appointment)
 // ─────────────────────────────────────────────────────────────
 
 model Payment {
-  id            String        @id @default(cuid())
+  id String @id @default(cuid())
 
   appointmentId String
-  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
-  patientId     String
-  patient       User          @relation(fields: [patientId], references: [id])
+  patientId String
+  patient   User   @relation(fields: [patientId], references: [id])
 
-  amount        Decimal       @db.Decimal(10, 2)
-  method        PaymentMethod @default(CASH)
-  status        PaymentStatus @default(PENDING)
+  amount  Decimal       @db.Decimal(10, 2)
+  method  PaymentMethod @default(CASH)
+  status  PaymentStatus @default(PENDING)
 
-  // Mobile banking fields
   phoneNumber   String?
   transactionId String?  @unique
 
   receiptNo    String?  @unique
-  paymentProof String?  // screenshot URL (Cloudinary / S3)
+  paymentProof String?
   note         String?
 
   paidAt    DateTime?
@@ -764,15 +789,113 @@ model Payment {
 }
 
 // ─────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  SaaS BILLING LAYER
+//  SaasPlan → Subscription → Invoice
+// ══════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────
+
+// ── SaaS Plan (defined by platform owner) ────────────────────
+
+model SaasPlan {
+  id   String   @id @default(cuid())
+  name String   @unique // "Free" | "Basic" | "Professional" | "Enterprise"
+  tier PlanTier
+
+  monthlyPrice Decimal @db.Decimal(10, 2) // BDT per month
+  yearlyPrice  Decimal @db.Decimal(10, 2) // BDT per year (usually discounted)
+
+  // Limits
+  maxDoctors      Int @default(1)   // doctors allowed under this plan
+  maxPatients     Int @default(500) // active patients
+  maxStorageGb    Int @default(1)   // file/image storage GB
+  maxAppointments Int @default(200) // appointments per month; -1 = unlimited
+
+  // Feature flags stored as JSON for flexibility
+  // e.g. { "videoCall": true, "audioCall": true, "homeVisit": false,
+  //        "reportReview": true, "customBranding": false, "apiAccess": false }
+  features Json
+
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+// ── Subscription (one per clinic / admin user) ────────────────
+
+model Subscription {
+  id     String @id @default(cuid())
+  userId String @unique  // clinic owner / ADMIN
+  user   User   @relation(fields: [userId], references: [id])
+
+  planId String
+  plan   SaasPlan @relation(fields: [planId], references: [id])
+
+  status       SubscriptionStatus @default(TRIAL)
+  billingCycle BillingCycle       @default(MONTHLY)
+
+  trialEndsAt   DateTime?
+  startDate     DateTime
+  endDate       DateTime  // next renewal / expiry date
+  autoRenew     Boolean   @default(true)
+
+  lastPaidAt    DateTime?
+  nextBillingAt DateTime?
+
+  // Soft cancellation
+  cancelledAt     DateTime?
+  cancellationNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoices Invoice[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ── Invoice (one per billing cycle payment) ───────────────────
+
+model Invoice {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+
+  amount       Decimal       @db.Decimal(10, 2)
+  currency     String        @default("BDT")
+  status       PaymentStatus @default(PENDING)
+  billingCycle BillingCycle  @default(MONTHLY)
+
+  // Period this invoice covers
+  periodStart DateTime
+  periodEnd   DateTime
+
+  // Payment details
+  method        PaymentMethod? // BKASH | CARD etc.
+  transactionId String?        @unique
+  receiptNo     String?        @unique
+
+  issuedAt  DateTime  @default(now())
+  paidAt    DateTime?
+  dueDate   DateTime?
+
+  @@index([subscriptionId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────
 // AUDIT LOG
 // ─────────────────────────────────────────────────────────────
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  action    String   // CREATE | UPDATE | DELETE | LOGIN | PRINT
+  action    String  // CREATE | UPDATE | DELETE | LOGIN | PRINT
   tableName String
   recordId  String?
   changes   Json?

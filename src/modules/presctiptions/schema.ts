@@ -24,7 +24,7 @@ export const updatePrescriptionSchema = z
         headerTemplate: z.string().trim().max(500).optional().nullable(),
         clinicalNotes: z.string().trim().max(2000).optional().nullable(),
     })
-    .refine((data) => Object.keys(data).length > 0, {
+    .refine((d) => Object.keys(d).length > 0, {
         message: "At least one field must be provided.",
     });
 
@@ -32,19 +32,19 @@ export type CreatePrescriptionInput = z.infer<typeof createPrescriptionSchema>;
 export type UpdatePrescriptionInput = z.infer<typeof updatePrescriptionSchema>;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CHIEF COMPLAINT
+// CHIEF COMPLAINTS
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const chiefComplaintSchema = z.object({
     complaint: z.string().trim().min(1, "Complaint is required.").max(300),
-    duration: z.string().trim().max(20).optional().nullable(),
+    duration: z.string().trim().max(50).optional().nullable(),
     durationUnit: z.nativeEnum(DurationUnit).optional().nullable(),
     sortOrder: z.number().int().min(0).default(0),
 });
 
 export const updateChiefComplaintSchema = chiefComplaintSchema
     .partial()
-    .refine((data) => Object.keys(data).length > 0, {
+    .refine((d) => Object.keys(d).length > 0, {
         message: "At least one field must be provided.",
     });
 
@@ -54,36 +54,36 @@ export type UpdateChiefComplaintInput = z.infer<
 >;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// HISTORY (upsert — all boolean flags)
+// HISTORY (one per prescription — upsert)
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const historySchema = z.object({
-    htn: z.boolean().default(false),
-    dm: z.boolean().default(false),
-    copd: z.boolean().default(false),
-    ihd: z.boolean().default(false),
-    ckd: z.boolean().default(false),
-    cld: z.boolean().default(false),
-    tobaccoChewing: z.boolean().default(false),
-    smoking: z.boolean().default(false),
-    cvd: z.boolean().default(false),
-    asthma: z.boolean().default(false),
-    malignancy: z.boolean().default(false),
-    allergy: z.boolean().default(false),
-    psychiatricDisorder: z.boolean().default(false),
-    drugAbuse: z.boolean().default(false),
-    depression: z.boolean().default(false),
+    htn: z.boolean().optional(),
+    dm: z.boolean().optional(),
+    copd: z.boolean().optional(),
+    ihd: z.boolean().optional(),
+    ckd: z.boolean().optional(),
+    cld: z.boolean().optional(),
+    tobaccoChewing: z.boolean().optional(),
+    smoking: z.boolean().optional(),
+    cvd: z.boolean().optional(),
+    asthma: z.boolean().optional(),
+    malignancy: z.boolean().optional(),
+    allergy: z.boolean().optional(),
+    psychiatricDisorder: z.boolean().optional(),
+    drugAbuse: z.boolean().optional(),
+    depression: z.boolean().optional(),
     otherNotes: z.string().trim().max(1000).optional().nullable(),
 });
 
 export type HistoryInput = z.infer<typeof historySchema>;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// EXAMINATION
+// EXAMINATIONS
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const examinationSchema = z.object({
-    parameter: z.string().trim().min(1, "Parameter name is required.").max(100),
+    parameter: z.string().trim().min(1, "Parameter is required.").max(100),
     value: z.string().trim().max(200).optional().nullable(),
     unit: z.string().trim().max(50).optional().nullable(),
     sortOrder: z.number().int().min(0).default(0),
@@ -91,7 +91,7 @@ export const examinationSchema = z.object({
 
 export const updateExaminationSchema = examinationSchema
     .partial()
-    .refine((data) => Object.keys(data).length > 0, {
+    .refine((d) => Object.keys(d).length > 0, {
         message: "At least one field must be provided.",
     });
 
@@ -99,7 +99,7 @@ export type ExaminationInput = z.infer<typeof examinationSchema>;
 export type UpdateExaminationInput = z.infer<typeof updateExaminationSchema>;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// DIAGNOSIS
+// DIAGNOSES
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const diagnosisSchema = z.object({
@@ -113,7 +113,7 @@ export const diagnosisSchema = z.object({
 
 export const updateDiagnosisSchema = diagnosisSchema
     .partial()
-    .refine((data) => Object.keys(data).length > 0, {
+    .refine((d) => Object.keys(d).length > 0, {
         message: "At least one field must be provided.",
     });
 
@@ -121,7 +121,7 @@ export type DiagnosisInput = z.infer<typeof diagnosisSchema>;
 export type UpdateDiagnosisInput = z.infer<typeof updateDiagnosisSchema>;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// INVESTIGATION
+// INVESTIGATIONS
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const investigationSchema = z.object({
@@ -135,7 +135,7 @@ export const investigationSchema = z.object({
 
 export const updateInvestigationSchema = investigationSchema
     .partial()
-    .refine((data) => Object.keys(data).length > 0, {
+    .refine((d) => Object.keys(d).length > 0, {
         message: "At least one field must be provided.",
     });
 
@@ -145,38 +145,38 @@ export type UpdateInvestigationInput = z.infer<
 >;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// RX ITEM
+// RX ITEMS
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const rxItemSchema = z
     .object({
         drugId: z.string().cuid("Invalid drug ID.").optional().nullable(),
+        customBrand: z.string().trim().max(200).optional().nullable(),
         itemNo: z
             .number({ required_error: "Item number is required." })
             .int()
             .positive(),
-        customBrand: z.string().trim().max(200).optional().nullable(),
         dose: z.string().trim().max(100).optional().nullable(),
         instruction: z.string().trim().max(300).optional().nullable(),
         duration: z.string().trim().max(100).optional().nullable(),
         sortOrder: z.number().int().min(0).default(0),
     })
-    .refine((data) => data.drugId || data.customBrand, {
+    .refine((d) => d.drugId || d.customBrand, {
         message: "Either drugId or customBrand must be provided.",
         path: ["drugId"],
     });
 
 export const updateRxItemSchema = z
     .object({
-        drugId: z.string().cuid("Invalid drug ID.").optional().nullable(),
-        itemNo: z.number().int().positive().optional(),
+        drugId: z.string().cuid().optional().nullable(),
         customBrand: z.string().trim().max(200).optional().nullable(),
+        itemNo: z.number().int().positive().optional(),
         dose: z.string().trim().max(100).optional().nullable(),
         instruction: z.string().trim().max(300).optional().nullable(),
         duration: z.string().trim().max(100).optional().nullable(),
         sortOrder: z.number().int().min(0).optional(),
     })
-    .refine((data) => Object.keys(data).length > 0, {
+    .refine((d) => Object.keys(d).length > 0, {
         message: "At least one field must be provided.",
     });
 
@@ -187,7 +187,7 @@ export type UpdateRxItemInput = z.infer<typeof updateRxItemSchema>;
 // PRESCRIPTION ADVICE
 // ══════════════════════════════════════════════════════════════════════════════
 
-export const prescriptionAdviceSchema = z.object({
+export const adviceSchema = z.object({
     adviceText: z.string().trim().max(1000).optional().nullable(),
     nextVisitDate: z.string().trim().max(100).optional().nullable(),
     fee: z.number().positive().optional().nullable(),
@@ -197,13 +197,102 @@ export const prescriptionAdviceSchema = z.object({
     sortOrder: z.number().int().min(0).default(0),
 });
 
-export const updatePrescriptionAdviceSchema = prescriptionAdviceSchema
+export const updateAdviceSchema = adviceSchema
     .partial()
-    .refine((data) => Object.keys(data).length > 0, {
+    .refine((d) => Object.keys(d).length > 0, {
         message: "At least one field must be provided.",
     });
 
-export type PrescriptionAdviceInput = z.infer<typeof prescriptionAdviceSchema>;
-export type UpdatePrescriptionAdviceInput = z.infer<
-    typeof updatePrescriptionAdviceSchema
->;
+export type AdviceInput = z.infer<typeof adviceSchema>;
+export type UpdateAdviceInput = z.infer<typeof updateAdviceSchema>;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REPORT ENTRIES
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const reportEntrySchema = z.object({
+    reportName: z.string().trim().min(1, "Report name is required.").max(200),
+    reportDate: z.coerce.date().optional().nullable(),
+    resultValue: z.string().trim().max(200).optional().nullable(),
+    unit: z.string().trim().max(50).optional().nullable(),
+});
+
+export const updateReportEntrySchema = reportEntrySchema
+    .partial()
+    .refine((d) => Object.keys(d).length > 0, {
+        message: "At least one field must be provided.",
+    });
+
+export type ReportEntryInput = z.infer<typeof reportEntrySchema>;
+export type UpdateReportEntryInput = z.infer<typeof updateReportEntrySchema>;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BMI RECORD (one per prescription — upsert)
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const bmiRecordSchema = z.object({
+    weightKg: z.number().positive().max(500).optional().nullable(),
+    heightFeet: z.number().min(0).max(10).optional().nullable(),
+    heightInches: z.number().min(0).max(11).optional().nullable(),
+    insulin: z.number().optional().nullable(),
+    qScore: z.number().optional().nullable(),
+    wwi: z.number().optional().nullable(),
+    bild: z.number().optional().nullable(),
+});
+
+export type BmiRecordInput = z.infer<typeof bmiRecordSchema>;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DRUG HISTORY
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const drugHistorySchema = z.object({
+    drugName: z.string().trim().min(1, "Drug name is required.").max(200),
+    details: z.string().trim().max(500).optional().nullable(),
+    sortOrder: z.number().int().min(0).default(0),
+});
+
+export const updateDrugHistorySchema = drugHistorySchema
+    .partial()
+    .refine((d) => Object.keys(d).length > 0, {
+        message: "At least one field must be provided.",
+    });
+
+export type DrugHistoryInput = z.infer<typeof drugHistorySchema>;
+export type UpdateDrugHistoryInput = z.infer<typeof updateDrugHistorySchema>;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PLANS
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const planSchema = z.object({
+    planText: z.string().trim().min(1, "Plan text is required.").max(500),
+    sortOrder: z.number().int().min(0).default(0),
+});
+
+export const updatePlanSchema = planSchema
+    .partial()
+    .refine((d) => Object.keys(d).length > 0, {
+        message: "At least one field must be provided.",
+    });
+
+export type PlanInput = z.infer<typeof planSchema>;
+export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NOTES
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const noteSchema = z.object({
+    noteText: z.string().trim().min(1, "Note text is required.").max(500),
+    sortOrder: z.number().int().min(0).default(0),
+});
+
+export const updateNoteSchema = noteSchema
+    .partial()
+    .refine((d) => Object.keys(d).length > 0, {
+        message: "At least one field must be provided.",
+    });
+
+export type NoteInput = z.infer<typeof noteSchema>;
+export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;

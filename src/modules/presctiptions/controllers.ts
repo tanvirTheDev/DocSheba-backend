@@ -369,8 +369,7 @@ export const examinationControllers = makeSectionControllers(
     svc.addExaminationService,
     svc.updateExaminationService,
     svc.deleteExaminationService,
-    examinationSchema,
-    updateExaminationSchema,
+    examinationSchema, 
 );
 export const diagnosisControllers = makeSectionControllers(
     "Diagnosis",

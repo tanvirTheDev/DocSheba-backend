@@ -3,7 +3,7 @@
 import cors from "cors";
 import express, { Request, Response, NextFunction } from "express";
 import morgan from "morgan";
-// import routes from "./routes";
+import routes from "./routes";
 
 const app = express();
 
@@ -30,7 +30,7 @@ app.get("/api/v1/health", (_req, res) => {
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 
-// app.use("/api/v1", routes);
+app.use("/api/v1", routes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 

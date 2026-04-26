@@ -89,6 +89,8 @@ export const getPatientProfileService = async (
         select: profileSelect,
     });
 
+    console.log("patient : ", profile);
+
     if (!profile) throw new Error("PROFILE_NOT_FOUND");
 
     return profile;

@@ -26,7 +26,7 @@ router.use(authenticate);
  */
 router.get(
     "/",
-    authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
+    // authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
     listAppointmentsController,
 );
 
@@ -37,7 +37,7 @@ router.get(
  */
 router.post(
     "/",
-    authorize("PATIENT", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
+    // authorize("PATIENT", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
     createAppointmentController,
 );
 
@@ -49,7 +49,7 @@ router.post(
  */
 router.get(
     "/:id",
-    authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
+    // authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
     getAppointmentByIdController,
 );
 
@@ -60,7 +60,7 @@ router.get(
  */
 router.patch(
     "/:id",
-    authorize("DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
+    // authorize("DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
     updateAppointmentController,
 );
 
@@ -71,7 +71,7 @@ router.patch(
  */
 router.delete(
     "/:id",
-    authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
+    // authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
     cancelAppointmentController,
 );
 
@@ -84,7 +84,7 @@ router.delete(
  */
 router.post(
     "/:id/call/start",
-    authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
+    // authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
     startCallController,
 );
 
@@ -95,7 +95,7 @@ router.post(
  */
 router.post(
     "/:id/call/end",
-    authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
+    // authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
     endCallController,
 );
 

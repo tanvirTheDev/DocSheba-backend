@@ -17,7 +17,10 @@ const router = Router();
 router.use(authenticate);
 
 // ─── Admin / Super Admin only ─────────────────────────────────────────────────
-router.get("/", authorize("ADMIN", "SUPER_ADMIN"), listUsersController);
+router.get(
+    "/",
+    /*TODO: authorize("ADMIN", "SUPER_ADMIN"), */ listUsersController,
+);
 
 // ─── Any authenticated user (own) or Admin ────────────────────────────────────
 router.get(

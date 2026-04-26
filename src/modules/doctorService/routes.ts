@@ -25,7 +25,7 @@ router.use(authenticate);
  */
 router.get(
     "/:userId/profile",
-    authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
+    // authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
     getDoctorProfileController,
 );
 
@@ -37,7 +37,7 @@ router.get(
  */
 router.put(
     "/:userId/profile",
-    authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
+    // authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
     upsertDoctorProfileController,
 );
 
@@ -50,7 +50,7 @@ router.put(
  */
 router.get(
     "/:doctorId/services",
-    authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
+    // authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
     listDoctorServicesController,
 );
 
@@ -61,7 +61,7 @@ router.get(
  */
 router.post(
     "/:doctorId/services",
-    authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
+    // authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
     addDoctorServiceController,
 );
 
@@ -72,7 +72,7 @@ router.post(
  */
 router.patch(
     "/:doctorId/services/:serviceId",
-    authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
+    // authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
     updateDoctorServiceController,
 );
 
@@ -83,7 +83,7 @@ router.patch(
  */
 router.delete(
     "/:doctorId/services/:serviceId",
-    authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
+    // authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
     deleteDoctorServiceController,
 );
 

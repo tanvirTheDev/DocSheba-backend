@@ -12,6 +12,7 @@ import {
 import { prisma } from "../../lib/prisma";
 import {
     AccountStatus,
+    Role,
     VerificationCodeType,
     VerificationStatus,
 } from "../../generated/prisma/enums";
@@ -80,7 +81,7 @@ export const verifyEmailService = async (data: VerifyEmailInput) => {
 
     const user = await prisma.user.findUnique({
         where: { email },
-        select: { id: true, verified: true },
+        select: { id: true, verified: true, role: true }, // ← add role
     });
 
     if (!user) throw new Error("USER_NOT_FOUND");
@@ -110,11 +111,18 @@ export const verifyEmailService = async (data: VerifyEmailInput) => {
             where: { id: user.id },
             data: { verified: true, status: AccountStatus.ACTIVE },
         }),
+
+        // ── Create profile based on role ──────────────────────────
+        ...(user.role === Role.PATIENT
+            ? [prisma.patientProfile.create({ data: { userId: user.id } })]
+            : []),
+        ...(user.role === Role.DOCTOR || user.role === Role.DOCTOR_ASSISTANT
+            ? [prisma.doctorProfile.create({ data: { userId: user.id } })]
+            : []),
     ]);
 
     return { message: "Email verified. Account is now active." };
 };
-
 // ─── Login ────────────────────────────────────────────────────────────────────
 
 export const loginService = async (data: LoginInput) => {

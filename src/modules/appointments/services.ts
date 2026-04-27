@@ -259,7 +259,7 @@ export const createAppointmentService = async (
         resolvedFee = Number(service.fee);
         resolvedServiceType = service.serviceType;
         if (service.serviceType === ServiceType.HOME_VISIT) {
-            visitLocation = location;  
+            visitLocation = location;
         }
     }
 

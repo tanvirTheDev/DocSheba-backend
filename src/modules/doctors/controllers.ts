@@ -124,7 +124,7 @@ export const upsertDoctorProfileController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const profile = await upsertDoctorProfileService(
             parsedId.data,
@@ -202,7 +202,7 @@ export const addDoctorServiceController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const service = await addDoctorServiceService(
             parsedId.data,
@@ -252,7 +252,7 @@ export const updateDoctorServiceController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const service = await updateDoctorServiceService(
             parsedDoctorId.data,
@@ -292,7 +292,7 @@ export const deleteDoctorServiceController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const result = await deleteDoctorServiceService(
             parsedDoctorId.data,

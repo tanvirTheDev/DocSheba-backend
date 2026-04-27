@@ -250,7 +250,7 @@ export const logoutController = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const { id: userId } = req.user!;
+        const { userId } = req.user!;
 
         // Accept refresh token from body or Authorization header
         const refreshToken =
@@ -353,7 +353,7 @@ export const changePasswordController = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const { id: userId } = req.user!;
+        const { userId } = req.user!;
 
         const parsed = changePasswordSchema.safeParse(req.body);
 
@@ -405,7 +405,7 @@ export const getMeController = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const { id: userId } = req.user!;
+        const { userId } = req.user!;
 
         const user = await getMeService(userId);
 

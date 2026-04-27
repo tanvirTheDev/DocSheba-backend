@@ -102,7 +102,7 @@ export const listAppointmentsController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const result = await listAppointmentsService(
             parsed.data,
@@ -139,7 +139,7 @@ export const getAppointmentByIdController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const appointment = await getAppointmentByIdService(
             parsedId.data,
@@ -175,7 +175,7 @@ export const createAppointmentController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const appointment = await createAppointmentService(
             parsed.data,
@@ -222,7 +222,7 @@ export const updateAppointmentController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const appointment = await updateAppointmentService(
             parsedId.data,
@@ -259,7 +259,7 @@ export const cancelAppointmentController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const result = await cancelAppointmentService(
             parsedId.data,
@@ -291,7 +291,7 @@ export const startCallController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const result = await startCallService(
             parsedId.data,
@@ -327,7 +327,7 @@ export const endCallController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const appointment = await endCallService(
             parsedId.data,

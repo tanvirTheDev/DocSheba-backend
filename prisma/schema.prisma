@@ -258,9 +258,9 @@ model DoctorProfile {
 // ─────────────────────────────────────────────────────────────
 
 model DoctorService {
-  id       String @id @default(cuid())
-  doctorId String
-  doctor   User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  id           String @id @default(cuid())
+  doctorId     String
+  doctor       User   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   serviceType  ServiceType
   fee          Decimal     @db.Decimal(10, 2)
@@ -268,8 +268,8 @@ model DoctorService {
   isActive     Boolean     @default(true)
   description  String?     // optional note to patient e.g. "Includes prescription"
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   appointments Appointment[]
 
@@ -350,21 +350,21 @@ model AppointmentSerial {
 // ─────────────────────────────────────────────────────────────
 
 model Appointment {
-  id String @id @default(cuid())
+  id String   @id @default(cuid())
 
-  patientId String
-  patient   User   @relation("PatientAppointments", fields: [patientId], references: [id])
+  patientId   String
+  patient     User   @relation("PatientAppointments", fields: [patientId], references: [id])
 
-  doctorId String
-  doctor   User   @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  doctorId    String
+  doctor      User   @relation("DoctorAppointments", fields: [doctorId], references: [id])
 
-  bookedById String?
-  bookedBy   User?   @relation("BookedByUser", fields: [bookedById], references: [id])
+  bookedById  String?
+  bookedBy    User?   @relation("BookedByUser", fields: [bookedById], references: [id])
 
   // Service link — which service the patient booked
-  serviceId   String?
-  service     DoctorService? @relation(fields: [serviceId], references: [id])
-  serviceType ServiceType    @default(IN_PERSON)
+  serviceId       String?
+  service         DoctorService? @relation(fields: [serviceId], references: [id])
+  serviceType     ServiceType    @default(IN_PERSON)
 
   serialNo        Int?
   fee             Int
@@ -413,8 +413,8 @@ model Prescription {
   headerTemplate   String?
   clinicalNotes    String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   chiefComplaints ChiefComplaint[]
   history         History?
@@ -442,10 +442,10 @@ model ChiefComplaint {
   prescriptionId String
   prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
-  complaint    String
-  duration     String?
-  durationUnit DurationUnit?
-  sortOrder    Int           @default(0)
+  complaint      String
+  duration       String?
+  durationUnit   DurationUnit?
+  sortOrder      Int           @default(0)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -453,9 +453,9 @@ model ChiefComplaint {
 // ─────────────────────────────────────────────────────────────
 
 model History {
-  id             String       @id @default(cuid())
-  prescriptionId String       @unique
-  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  id                  String       @id @default(cuid())
+  prescriptionId      String       @unique
+  prescription        Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
   htn                 Boolean @default(false)
   dm                  Boolean @default(false)
@@ -484,10 +484,10 @@ model Examination {
   prescriptionId String
   prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
-  parameter String
-  value     String?
-  unit      String?
-  sortOrder Int     @default(0)
+  parameter   String
+  value       String?
+  unit        String?
+  sortOrder   Int     @default(0)
 
   @@index([prescriptionId])
 }
@@ -501,8 +501,8 @@ model Diagnosis {
   prescriptionId String
   prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
-  diagnosisText String
-  sortOrder     Int @default(0)
+  diagnosisText  String
+  sortOrder      Int @default(0)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -510,9 +510,9 @@ model Diagnosis {
 // ─────────────────────────────────────────────────────────────
 
 model Investigation {
-  id             String       @id @default(cuid())
-  prescriptionId String
-  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  id                String       @id @default(cuid())
+  prescriptionId    String
+  prescription      Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
   investigationName String
   sortOrder         Int @default(0)
@@ -531,8 +531,8 @@ model DrugDatabase {
   form        DrugForm @default(TABLET)
   isActive    Boolean  @default(true)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   rxItems                   RxItem[]
   drugTemplateItems         DrugTemplateItem[]
@@ -569,9 +569,9 @@ model RxItem {
 // ─────────────────────────────────────────────────────────────
 
 model PrescriptionAdvice {
-  id             String       @id @default(cuid())
-  prescriptionId String
-  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  id               String       @id @default(cuid())
+  prescriptionId   String
+  prescription     Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
   adviceText       String?
   nextVisitDate    String?
@@ -627,9 +627,9 @@ model DrugHistory {
   prescriptionId String
   prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
-  drugName  String
-  details   String?
-  sortOrder Int @default(0)
+  drugName     String
+  details      String?
+  sortOrder    Int @default(0)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -641,8 +641,8 @@ model Plan {
   prescriptionId String
   prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
-  planText  String
-  sortOrder Int @default(0)
+  planText       String
+  sortOrder      Int @default(0)
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -369,7 +369,7 @@ export const examinationControllers = makeSectionControllers(
     svc.addExaminationService,
     svc.updateExaminationService,
     svc.deleteExaminationService,
-    examinationSchema, 
+    examinationSchema,
 );
 export const diagnosisControllers = makeSectionControllers(
     "Diagnosis",
@@ -480,11 +480,11 @@ export const upsertHistoryController = async (
             });
             return;
         }
-        const { id, role } = req.user!;
+        const { userId, role } = req.user!;
         const data = await svc.upsertHistoryService(
             params.prescriptionId,
             parsed.data,
-            id,
+            userId,
             role as Role,
         );
         res.status(200).json({
@@ -533,11 +533,11 @@ export const upsertBmiRecordController = async (
             });
             return;
         }
-        const { id, role } = req.user!;
+        const { userId, role } = req.user!;
         const data = await svc.upsertBmiRecordService(
             params.prescriptionId,
             parsed.data,
-            id,
+            userId,
             role as Role,
         );
         res.status(200).json({

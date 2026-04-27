@@ -244,9 +244,10 @@ export const createAppointmentService = async (
     if (!doctor.doctorProfile?.isAvailable)
         throw new Error("DOCTOR_NOT_AVAILABLE");
 
-    // ── Resolve fee and serviceType from DoctorService if serviceId given ─────
+    // ── Resolve fee , serviceType and location from DoctorService if serviceId given ─────
     let resolvedFee = fee;
     let resolvedServiceType = serviceType;
+    let visitLocation = null;
 
     if (serviceId) {
         const service = await prisma.doctorService.findFirst({
@@ -257,6 +258,9 @@ export const createAppointmentService = async (
 
         resolvedFee = Number(service.fee);
         resolvedServiceType = service.serviceType;
+        if (service.serviceType === ServiceType.HOME_VISIT) {
+            visitLocation = location;  
+        }
     }
 
     // ── Validate referral agent if provided ───────────────────────────────────
@@ -290,7 +294,7 @@ export const createAppointmentService = async (
                 paymentMethod,
                 appointmentDate,
                 serialNo,
-                location: location ?? null,
+                location: visitLocation ?? null,
                 chiefComplaint: chiefComplaint ?? null,
                 notes: notes ?? null,
                 status: AppointmentStatus.PENDING,

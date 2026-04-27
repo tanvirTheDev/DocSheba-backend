@@ -60,7 +60,7 @@ export const getPatientProfileController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const profile = await getPatientProfileService(
             parsedId.data,
@@ -107,7 +107,7 @@ export const upsertPatientProfileController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const profile = await upsertPatientProfileService(
             parsedId.data,

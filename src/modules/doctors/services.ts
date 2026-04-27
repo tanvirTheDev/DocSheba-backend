@@ -88,6 +88,7 @@ export const upsertDoctorProfileService = async (
     // Only the doctor themselves or an admin can upsert
     if (
         requesterId !== userId &&
+        requesterRole !== Role.DOCTOR && //TODO: change this later
         requesterRole !== Role.ADMIN &&
         requesterRole !== Role.SUPER_ADMIN
     )
@@ -138,6 +139,7 @@ export const addDoctorServiceService = async (
     // Only the doctor themselves or an admin can add a service
     if (
         requesterId !== doctorId &&
+        requesterRole !== Role.DOCTOR &&
         requesterRole !== Role.ADMIN &&
         requesterRole !== Role.SUPER_ADMIN
     )

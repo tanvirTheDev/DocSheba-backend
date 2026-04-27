@@ -6,7 +6,7 @@ import appointmentRoutes from "../modules/appointments/routes";
 import authRoutes from "../modules/auth/routes";
 import userRoutes from "../modules/users/routes";
 import patientRoutes from "../modules/patients/routes";
-import doctorRoutes from "../modules/doctorsProfile/routes";
+import doctorRoutes from "../modules/doctors/routes";
 import prescriptionsRoutes from "../modules/presctiptions/routes";
 // add others as needed...
 

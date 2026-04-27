@@ -26,7 +26,7 @@ router.get(
 );
 
 // Only the doctor themselves or an admin can upsert
-router.put(
+router.patch(
     "/:userId/profile",
     authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
     upsertDoctorProfileController,

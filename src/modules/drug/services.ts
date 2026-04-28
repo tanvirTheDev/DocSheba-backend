@@ -113,12 +113,12 @@ export const getDrugByIdService = async (id: string) => {
 };
 
 export const createDrugService = async (data: CreateDrugInput) => {
-    // Check for duplicate brand name + strength + form combination
     const conflict = await prisma.drugDatabase.findFirst({
         where: {
             brandName: { equals: data.brandName, mode: "insensitive" },
-            strength: data.strength ?? null,
-            form: data.form ?? null,
+            // ✅ null → undefined so Prisma's where filter is satisfied
+            strength: data.strength ?? undefined,
+            form: data.form ?? undefined,
         },
         select: { id: true },
     });
@@ -126,22 +126,41 @@ export const createDrugService = async (data: CreateDrugInput) => {
     if (conflict) throw new Error("DRUG_ALREADY_EXISTS");
 
     return prisma.drugDatabase.create({
-        data,
+        data: {
+            brandName: data.brandName,
+            genericName: data.genericName ?? null,
+            drugClass: data.drugClass ?? null,
+            strength: data.strength ?? null,
+            form: data.form ?? undefined,
+            isActive: data.isActive ?? true,
+        },
         select: drugSelect,
     });
 };
 
 export const updateDrugService = async (id: string, data: UpdateDrugInput) => {
-    const drug = await prisma.drugDatabase.findUnique({
+    const existing = await prisma.drugDatabase.findUnique({
         where: { id },
         select: { id: true },
     });
-
-    if (!drug) throw new Error("DRUG_NOT_FOUND");
+    if (!existing) return null;
 
     return prisma.drugDatabase.update({
         where: { id },
-        data,
+        data: {
+            ...(data.brandName !== undefined && { brandName: data.brandName }),
+            ...(data.genericName !== undefined && {
+                genericName: data.genericName ?? null,
+            }),
+            ...(data.drugClass !== undefined && {
+                drugClass: data.drugClass ?? null,
+            }),
+            ...(data.strength !== undefined && {
+                strength: data.strength ?? null,
+            }),
+            ...(data.form !== undefined && { form: data.form ?? undefined }),
+            ...(data.isActive !== undefined && { isActive: data.isActive }),
+        },
         select: drugSelect,
     });
 };
@@ -173,7 +192,9 @@ export const listDrugTemplatesService = async (
 ) => {
     // Doctors see their own templates + shared ones
     // Admins see all
-    const isAdmin = [Role.ADMIN, Role.SUPER_ADMIN].includes(requesterRole);
+    const isAdmin = ([Role.ADMIN, Role.SUPER_ADMIN] as Role[]).includes(
+        requesterRole,
+    );
 
     const where: Prisma.DrugTemplateWhereInput = isAdmin
         ? {}
@@ -247,7 +268,9 @@ export const updateDrugTemplateService = async (
     if (!template) throw new Error("TEMPLATE_NOT_FOUND");
 
     // Only owner or admin can update
-    const isAdmin = [Role.ADMIN, Role.SUPER_ADMIN].includes(requesterRole);
+    const isAdmin = ([Role.ADMIN, Role.SUPER_ADMIN] as Role[]).includes(
+        requesterRole,
+    );
     if (!isAdmin && template.doctorId !== requesterId)
         throw new Error("FORBIDDEN");
 
@@ -311,7 +334,9 @@ export const deleteDrugTemplateService = async (
 
     if (!template) throw new Error("TEMPLATE_NOT_FOUND");
 
-    const isAdmin = [Role.ADMIN, Role.SUPER_ADMIN].includes(requesterRole);
+    const isAdmin = ([Role.ADMIN, Role.SUPER_ADMIN] as Role[]).includes(
+        requesterRole,
+    );
     if (!isAdmin && template.doctorId !== requesterId)
         throw new Error("FORBIDDEN");
 

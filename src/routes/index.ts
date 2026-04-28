@@ -8,6 +8,11 @@ import userRoutes from "../modules/users/routes";
 import patientRoutes from "../modules/patients/routes";
 import doctorRoutes from "../modules/doctors/routes";
 import prescriptionsRoutes from "../modules/presctiptions/routes";
+import drugsRoutes from "../modules/drug/routes";
+import templateRoutes from "../modules/templates/routes";
+import saasPlanRoutes from "../modules/saas-plan/routes";
+import subscriptionRoutes from "../modules/subscription/routes";
+import invoiceRoutes from "../modules/invoice/routes";
 // add others as needed...
 
 const router = Router();
@@ -19,8 +24,11 @@ router.use("/users", userRoutes);
 router.use("/patients", patientRoutes);
 router.use("/doctors", doctorRoutes);
 router.use("/prescriptions", prescriptionsRoutes);
-
-//drug
+router.use("/drugs", drugsRoutes);
+router.use("/templates", templateRoutes);
+router.use("/saas/plans", saasPlanRoutes);
+router.use("/subscriptions", subscriptionRoutes);
+router.use("/invoices", invoiceRoutes);
 //
 
 export default router;

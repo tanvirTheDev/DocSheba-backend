@@ -39,10 +39,10 @@ const prescriptionFullInclude = {
     diagnoses: { orderBy: { sortOrder: "asc" as const } },
     investigations: { orderBy: { sortOrder: "asc" as const } },
     rxItems: { orderBy: { sortOrder: "asc" as const } },
-    advice: { orderBy: { sortOrder: "asc" as const } },
+    advices: { orderBy: { sortOrder: "asc" as const } },
     reportEntries: true,
     bmiRecord: true,
-    drugHistory: { orderBy: { sortOrder: "asc" as const } },
+    drugHistories: { orderBy: { sortOrder: "asc" as const } },
     plans: { orderBy: { sortOrder: "asc" as const } },
     notes: { orderBy: { sortOrder: "asc" as const } },
     appointment: {
@@ -51,36 +51,37 @@ const prescriptionFullInclude = {
             appointmentDate: true,
             serviceType: true,
             fee: true,
-        },
-    },
-    doctor: {
-        select: {
-            id: true,
-            name: true,
-            doctorProfile: {
+            // ✅ pull doctor + patient through appointment relation
+            doctor: {
                 select: {
-                    specialty: true,
-                    qualifications: true,
-                    licenseNo: true,
-                    signatureImageUrl: true,
-                    clinicName: true,
-                    clinicAddress: true,
+                    id: true,
+                    name: true,
+                    doctorProfile: {
+                        select: {
+                            specialty: true,
+                            qualifications: true,
+                            licenseNo: true,
+                            signatureImageUrl: true,
+                            clinicName: true,
+                            clinicAddress: true,
+                        },
+                    },
                 },
             },
-        },
-    },
-    patient: {
-        select: {
-            id: true,
-            name: true,
-            patientProfile: {
+            patient: {
                 select: {
-                    regNo: true,
-                    dateOfBirth: true,
-                    sex: true,
-                    bloodGroup: true,
-                    weightKg: true,
-                    heightCm: true,
+                    id: true,
+                    name: true,
+                    patientProfile: {
+                        select: {
+                            regNo: true,
+                            dateOfBirth: true,
+                            sex: true,
+                            bloodGroup: true,
+                            weightKg: true,
+                            heightCm: true,
+                        },
+                    },
                 },
             },
         },
@@ -105,7 +106,9 @@ const assertCanEdit = (
     requesterId: string,
     requesterRole: Role,
 ) => {
-    const isAdmin = [Role.ADMIN, Role.SUPER_ADMIN].includes(requesterRole);
+    const isAdmin = ([Role.ADMIN, Role.SUPER_ADMIN] as Role[]).includes(
+        requesterRole,
+    );
     if (!isAdmin && rx.doctorId !== requesterId) throw new Error("FORBIDDEN");
     if (rx.status === PrescriptionStatus.FINALIZED)
         throw new Error("PRESCRIPTION_FINALIZED");
@@ -113,6 +116,39 @@ const assertCanEdit = (
         throw new Error("PRESCRIPTION_PRINTED");
 };
 
+// const assertCanEdit = async (
+//     rx: { doctorId: string; status: PrescriptionStatus },
+//     requesterId: string,
+//     requesterRole: Role,
+// ) => {
+//     const isAdmin = ([Role.ADMIN, Role.SUPER_ADMIN] as Role[]).includes(
+//         requesterRole,
+//     );
+
+//     if (!isAdmin) {
+//         const isDoctor = rx.doctorId === requesterId;
+
+//         // ✅ check if requester is an assistant linked to this doctor
+//         const isAssistant =
+//             requesterRole === Role.DOCTOR_ASSISTANT &&
+//             (await prisma.user
+//                 .findFirst({
+//                     where: {
+//                         id: requesterId,
+//                         assistantId: rx.doctorId, // linked to the prescription's doctor
+//                     },
+//                     select: { id: true },
+//                 })
+//                 .then(Boolean));
+
+//         if (!isDoctor && !isAssistant) throw new Error("FORBIDDEN");
+//     }
+
+//     if (rx.status === PrescriptionStatus.FINALIZED)
+//         throw new Error("PRESCRIPTION_FINALIZED");
+//     if (rx.status === PrescriptionStatus.PRINTED)
+//         throw new Error("PRESCRIPTION_PRINTED");
+// };
 // Generic BMI calculation
 const calcBmi = (
     weightKg: number,
@@ -148,7 +184,9 @@ export const createPrescriptionService = async (
 
     if (!appointment) throw new Error("APPOINTMENT_NOT_FOUND");
 
-    const isAdmin = [Role.ADMIN, Role.SUPER_ADMIN].includes(requesterRole);
+    const isAdmin = ([Role.ADMIN, Role.SUPER_ADMIN] as Role[]).includes(
+        requesterRole,
+    );
     if (!isAdmin && appointment.doctorId !== requesterId)
         throw new Error("FORBIDDEN");
 
@@ -184,7 +222,9 @@ export const getPrescriptionByIdService = async (
 
     if (!rx) throw new Error("PRESCRIPTION_NOT_FOUND");
 
-    const isAdmin = [Role.ADMIN, Role.SUPER_ADMIN].includes(requesterRole);
+    const isAdmin = ([Role.ADMIN, Role.SUPER_ADMIN] as Role[]).includes(
+        requesterRole,
+    );
     const isOwner = rx.doctorId === requesterId || rx.patientId === requesterId;
     const isAssist = requesterRole === Role.DOCTOR_ASSISTANT;
 
@@ -216,7 +256,9 @@ export const printPrescriptionService = async (
 ) => {
     const rx = await getPrescriptionOrThrow(id);
 
-    const isAdmin = [Role.ADMIN, Role.SUPER_ADMIN].includes(requesterRole);
+    const isAdmin = ([Role.ADMIN, Role.SUPER_ADMIN] as Role[]).includes(
+        requesterRole,
+    );
     if (!isAdmin && rx.doctorId !== requesterId) throw new Error("FORBIDDEN");
 
     if (rx.status === PrescriptionStatus.DRAFT)

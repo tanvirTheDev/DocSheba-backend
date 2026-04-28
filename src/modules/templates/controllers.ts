@@ -2,12 +2,22 @@
 
 import { Request, Response } from "express";
 import * as TemplateService from "./services";
+import {
+    CreateAdviceTemplateInput,
+    UpdateAdviceTemplateInput,
+    CreateDrugTemplateInput,
+    UpdateDrugTemplateInput,
+    CreateTreatmentTemplateInput,
+    UpdateTreatmentTemplateInput,
+    CreatePrescriptionTemplateInput,
+    UpdatePrescriptionTemplateInput,
+} from "./schema";
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────
 
-const getDoctorId = (req: Request): string => (req as any).user.userId;
+const getDoctorId = (req: Request): string => req.user!.userId;
 
 const notFound = (res: Response, message = "Template not found") =>
     res.status(404).json({ success: false, message });
@@ -44,16 +54,14 @@ export const getAdviceTemplate = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const { userId } = req.user!;
-        const { id } = req.params; // ✅ always string from req.params
+        const doctorId = getDoctorId(req);
+        const { id } = req.params as { id: string };
+        // service signature: getAdviceTemplateById(id, doctorId)
         const template = await TemplateService.getAdviceTemplateById(
-            userId,
             id,
+            doctorId,
         );
-        if (!template) {
-            notFound(res);
-            return;
-        }
+        if (!template) return void notFound(res);
         ok(res, template);
     } catch (error) {
         serverError(res, error);
@@ -66,9 +74,10 @@ export const createAdviceTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const body = req.body as CreateAdviceTemplateInput;
         const template = await TemplateService.createAdviceTemplate(
             doctorId,
-            req.body,
+            body,
         );
         ok(res, template, 201);
     } catch (error) {
@@ -81,16 +90,16 @@ export const updateAdviceTemplate = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const { userId } = req.user!;
+        const doctorId = getDoctorId(req);
+        const { id } = req.params as { id: string };
+        const body = req.body as UpdateAdviceTemplateInput;
+        // service signature: updateAdviceTemplate(id, doctorId, data)
         const template = await TemplateService.updateAdviceTemplate(
-            userId,
+            id,
             doctorId,
-            req.body,
+            body,
         );
-        if (!template) {
-            notFound(res);
-            return;
-        }
+        if (!template) return void notFound(res);
         ok(res, template);
     } catch (error) {
         serverError(res, error);
@@ -103,15 +112,10 @@ export const deleteAdviceTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
-        const { userId } = req.user!;
-        const result = await TemplateService.deleteAdviceTemplate(
-            userId,
-            doctorId,
-        );
-        if (!result) {
-            notFound(res);
-            return;
-        }
+        const { id } = req.params as { id: string };
+
+        const result = await TemplateService.deleteAdviceTemplate(id, doctorId);
+        if (!result) return void notFound(res);
         ok(res, { message: "Advice template deleted successfully" });
     } catch (error) {
         serverError(res, error);
@@ -141,14 +145,12 @@ export const getDrugTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const { id } = req.params as { id: string };
         const template = await TemplateService.getDrugTemplateById(
-            req.params.id,
+            id,
             doctorId,
         );
-        if (!template) {
-            notFound(res);
-            return;
-        }
+        if (!template) return void notFound(res);
         ok(res, template);
     } catch (error) {
         serverError(res, error);
@@ -161,9 +163,10 @@ export const createDrugTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const body = req.body as CreateDrugTemplateInput;
         const template = await TemplateService.createDrugTemplate(
             doctorId,
-            req.body,
+            body,
         );
         ok(res, template, 201);
     } catch (error) {
@@ -177,15 +180,14 @@ export const updateDrugTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const { id } = req.params as { id: string };
+        const body = req.body as UpdateDrugTemplateInput;
         const template = await TemplateService.updateDrugTemplate(
-            req.params.id,
+            id,
             doctorId,
-            req.body,
+            body,
         );
-        if (!template) {
-            notFound(res);
-            return;
-        }
+        if (!template) return void notFound(res);
         ok(res, template);
     } catch (error) {
         serverError(res, error);
@@ -198,14 +200,9 @@ export const deleteDrugTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
-        const result = await TemplateService.deleteDrugTemplate(
-            req.params.id,
-            doctorId,
-        );
-        if (!result) {
-            notFound(res);
-            return;
-        }
+        const { id } = req.params as { id: string };
+        const result = await TemplateService.deleteDrugTemplate(id, doctorId);
+        if (!result) return void notFound(res);
         ok(res, { message: "Drug template deleted successfully" });
     } catch (error) {
         serverError(res, error);
@@ -236,14 +233,12 @@ export const getTreatmentTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const { id } = req.params as { id: string };
         const template = await TemplateService.getTreatmentTemplateById(
-            req.params.id,
+            id,
             doctorId,
         );
-        if (!template) {
-            notFound(res);
-            return;
-        }
+        if (!template) return void notFound(res);
         ok(res, template);
     } catch (error) {
         serverError(res, error);
@@ -256,9 +251,10 @@ export const createTreatmentTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const body = req.body as CreateTreatmentTemplateInput;
         const template = await TemplateService.createTreatmentTemplate(
             doctorId,
-            req.body,
+            body,
         );
         ok(res, template, 201);
     } catch (error) {
@@ -272,15 +268,14 @@ export const updateTreatmentTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const { id } = req.params as { id: string };
+        const body = req.body as UpdateTreatmentTemplateInput;
         const template = await TemplateService.updateTreatmentTemplate(
-            req.params.id,
+            id,
             doctorId,
-            req.body,
+            body,
         );
-        if (!template) {
-            notFound(res);
-            return;
-        }
+        if (!template) return void notFound(res);
         ok(res, template);
     } catch (error) {
         serverError(res, error);
@@ -293,14 +288,12 @@ export const deleteTreatmentTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const { id } = req.params as { id: string };
         const result = await TemplateService.deleteTreatmentTemplate(
-            req.params.id,
+            id,
             doctorId,
         );
-        if (!result) {
-            notFound(res);
-            return;
-        }
+        if (!result) return void notFound(res);
         ok(res, { message: "Treatment template deleted successfully" });
     } catch (error) {
         serverError(res, error);
@@ -331,14 +324,12 @@ export const getPrescriptionTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const { id } = req.params as { id: string };
         const template = await TemplateService.getPrescriptionTemplateById(
-            req.params.id,
+            id,
             doctorId,
         );
-        if (!template) {
-            notFound(res);
-            return;
-        }
+        if (!template) return void notFound(res);
         ok(res, template);
     } catch (error) {
         serverError(res, error);
@@ -351,9 +342,10 @@ export const createPrescriptionTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const body = req.body as CreatePrescriptionTemplateInput;
         const template = await TemplateService.createPrescriptionTemplate(
             doctorId,
-            req.body,
+            body,
         );
         ok(res, template, 201);
     } catch (error) {
@@ -367,15 +359,14 @@ export const updatePrescriptionTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const { id } = req.params as { id: string };
+        const body = req.body as UpdatePrescriptionTemplateInput;
         const template = await TemplateService.updatePrescriptionTemplate(
-            req.params.id,
+            id,
             doctorId,
-            req.body,
+            body,
         );
-        if (!template) {
-            notFound(res);
-            return;
-        }
+        if (!template) return void notFound(res);
         ok(res, template);
     } catch (error) {
         serverError(res, error);
@@ -388,14 +379,12 @@ export const deletePrescriptionTemplate = async (
 ): Promise<void> => {
     try {
         const doctorId = getDoctorId(req);
+        const { id } = req.params as { id: string };
         const result = await TemplateService.deletePrescriptionTemplate(
-            req.params.id,
+            id,
             doctorId,
         );
-        if (!result) {
-            notFound(res);
-            return;
-        }
+        if (!result) return void notFound(res);
         ok(res, { message: "Prescription template deleted successfully" });
     } catch (error) {
         serverError(res, error);

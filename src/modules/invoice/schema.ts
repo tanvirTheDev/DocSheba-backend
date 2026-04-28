@@ -2,37 +2,32 @@
 
 import { z } from "zod";
 
-// ─── Enums ────────────────────────────────────────────────────
+// ─── Prisma Synced Enums ─────────────────────────────────────
 
-export const PlanTierEnum = z.enum([
-    "FREE",
-    "BASIC",
-    "PROFESSIONAL",
-    "ENTERPRISE",
+// Role
+export const RoleEnum = z.enum([
+    "PATIENT",
+    "DOCTOR",
+    "DOCTOR_ASSISTANT",
+    "ADMIN",
+    "SUPER_ADMIN",
 ]);
 
-export const SubscriptionStatusEnum = z.enum([
-    "TRIAL",
-    "ACTIVE",
-    "PAST_DUE",
-    "CANCELLED",
-    "EXPIRED",
+// Payment Method (FIXED)
+export const PaymentMethodEnum = z.enum([
+    "CASH",
+    "BKASH",
+    "NAGAD",
+    "ROCKET",
+    "CARD",
 ]);
 
-export const BillingCycleEnum = z.enum(["MONTHLY", "YEARLY"]);
-
+// Payment Status
 export const PaymentStatusEnum = z.enum([
     "PENDING",
     "PAID",
     "FAILED",
     "REFUNDED",
-]);
-
-export const PaymentMethodEnum = z.enum([
-    "BKASH",
-    "CARD",
-    "BANK_TRANSFER",
-    "CASH",
 ]);
 
 // ─── Invoice ─────────────────────────────────────────────────

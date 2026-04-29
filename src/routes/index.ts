@@ -13,7 +13,8 @@ import templateRoutes from "../modules/templates/routes";
 import saasPlanRoutes from "../modules/saas-plan/routes";
 import subscriptionRoutes from "../modules/subscription/routes";
 import invoiceRoutes from "../modules/invoice/routes";
-// add others as needed...
+import auditLogRoutes from "../modules/audit-logs/routes";
+import { agentRouter, referralRouter } from "../modules/referrals/routes";
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.use("/templates", templateRoutes);
 router.use("/saas/plans", saasPlanRoutes);
 router.use("/subscriptions", subscriptionRoutes);
 router.use("/invoices", invoiceRoutes);
-//
-
+router.use("/referral-agents", agentRouter);
+router.use("/referrals", referralRouter);
+router.use("/audit-logs", auditLogRoutes);
 export default router;

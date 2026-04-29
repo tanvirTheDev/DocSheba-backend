@@ -17,14 +17,14 @@ router.use(authenticate);
 // Patients can view their own; doctors/admins can view any
 router.get(
     "/:userId/profile",
-    // authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
+    authorize("PATIENT", "DOCTOR", "DOCTOR_ASSISTANT", "ADMIN", "SUPER_ADMIN"),
     getPatientProfileController,
 );
 
 // Patients can upsert their own; admins can upsert any
 router.put(
     "/:userId/profile",
-    // authorize("PATIENT", "ADMIN", "SUPER_ADMIN"),
+    authorize("PATIENT", "ADMIN", "SUPER_ADMIN"),
     upsertPatientProfileController,
 );
 

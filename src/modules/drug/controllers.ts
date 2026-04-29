@@ -218,7 +218,7 @@ export const listDrugTemplatesController = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const templates = await listDrugTemplatesService(
             requesterId,
@@ -251,7 +251,7 @@ export const createDrugTemplateController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const template = await createDrugTemplateService(
             parsed.data,
@@ -296,7 +296,7 @@ export const updateDrugTemplateController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const template = await updateDrugTemplateService(
             parsedId.data,
@@ -331,7 +331,7 @@ export const deleteDrugTemplateController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const result = await deleteDrugTemplateService(
             parsedId.data,

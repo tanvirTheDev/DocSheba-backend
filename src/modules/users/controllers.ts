@@ -241,7 +241,7 @@ export const deactivateUserController = async (
             return;
         }
 
-        const { id: requesterId, role: requesterRole } = req.user!;
+        const { userId: requesterId, role: requesterRole } = req.user!;
 
         const result = await deactivateUserService(
             parsedId.data,

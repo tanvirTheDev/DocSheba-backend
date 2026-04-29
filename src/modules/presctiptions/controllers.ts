@@ -139,10 +139,10 @@ export const getPrescriptionByIdController = async (
     try {
         const params = parseParams(res, req.params.id);
         if (!params) return;
-        const { id, role } = req.user!;
+        const { userId, role } = req.user!;
         const data = await svc.getPrescriptionByIdService(
             params.prescriptionId,
-            id,
+            userId,
             role as Role,
         );
         res.status(200).json({
@@ -171,11 +171,11 @@ export const updatePrescriptionController = async (
             });
             return;
         }
-        const { id, role } = req.user!;
+        const { userId, role } = req.user!;
         const data = await svc.updatePrescriptionService(
             params.prescriptionId,
             parsed.data,
-            id,
+            userId,
             role as Role,
         );
         res.status(200).json({
@@ -195,10 +195,10 @@ export const printPrescriptionController = async (
     try {
         const params = parseParams(res, req.params.id);
         if (!params) return;
-        const { id, role } = req.user!;
+        const { userId, role } = req.user!;
         const data = await svc.printPrescriptionService(
             params.prescriptionId,
-            id,
+            userId,
             role as Role,
         );
         res.status(200).json({
@@ -244,11 +244,11 @@ export const chiefComplaintControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.addChiefComplaintService(
                 params.prescriptionId,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(201).json({
@@ -277,12 +277,12 @@ export const chiefComplaintControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.updateChiefComplaintService(
                 params.prescriptionId,
                 params.itemId!,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({
@@ -302,11 +302,11 @@ export const chiefComplaintControllers = {
                 req.params.id,
             );
             if (!params) return;
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const result = await svc.deleteChiefComplaintService(
                 params.prescriptionId,
                 params.itemId!,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({ success: true, ...(result as object) });
@@ -350,11 +350,11 @@ export const examinationControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.addExaminationService(
                 params.prescriptionId,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(201).json({
@@ -383,12 +383,12 @@ export const examinationControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.updateExaminationService(
                 params.prescriptionId,
                 params.itemId!,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({
@@ -408,11 +408,11 @@ export const examinationControllers = {
                 req.params.id,
             );
             if (!params) return;
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const result = await svc.deleteExaminationService(
                 params.prescriptionId,
                 params.itemId!,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({ success: true, ...(result as object) });
@@ -454,11 +454,11 @@ export const diagnosisControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.addDiagnosisService(
                 params.prescriptionId,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(201).json({
@@ -487,12 +487,12 @@ export const diagnosisControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.updateDiagnosisService(
                 params.prescriptionId,
                 params.itemId!,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({
@@ -512,11 +512,11 @@ export const diagnosisControllers = {
                 req.params.id,
             );
             if (!params) return;
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const result = await svc.deleteDiagnosisService(
                 params.prescriptionId,
                 params.itemId!,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({ success: true, ...(result as object) });
@@ -560,11 +560,11 @@ export const investigationControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.addInvestigationService(
                 params.prescriptionId,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(201).json({
@@ -593,12 +593,12 @@ export const investigationControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.updateInvestigationService(
                 params.prescriptionId,
                 params.itemId!,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({
@@ -618,11 +618,11 @@ export const investigationControllers = {
                 req.params.id,
             );
             if (!params) return;
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const result = await svc.deleteInvestigationService(
                 params.prescriptionId,
                 params.itemId!,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({ success: true, ...(result as object) });
@@ -664,11 +664,11 @@ export const rxItemControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.addRxItemService(
                 params.prescriptionId,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(201).json({
@@ -697,12 +697,12 @@ export const rxItemControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.updateRxItemService(
                 params.prescriptionId,
                 params.itemId!,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({
@@ -722,11 +722,11 @@ export const rxItemControllers = {
                 req.params.id,
             );
             if (!params) return;
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const result = await svc.deleteRxItemService(
                 params.prescriptionId,
                 params.itemId!,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({ success: true, ...(result as object) });
@@ -768,11 +768,11 @@ export const adviceControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.addAdviceService(
                 params.prescriptionId,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(201).json({
@@ -801,12 +801,12 @@ export const adviceControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.updateAdviceService(
                 params.prescriptionId,
                 params.itemId!,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({
@@ -826,11 +826,11 @@ export const adviceControllers = {
                 req.params.id,
             );
             if (!params) return;
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const result = await svc.deleteAdviceService(
                 params.prescriptionId,
                 params.itemId!,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({ success: true, ...(result as object) });
@@ -874,11 +874,11 @@ export const reportEntryControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.addReportEntryService(
                 params.prescriptionId,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(201).json({
@@ -907,12 +907,12 @@ export const reportEntryControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.updateReportEntryService(
                 params.prescriptionId,
                 params.itemId!,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({
@@ -932,11 +932,11 @@ export const reportEntryControllers = {
                 req.params.id,
             );
             if (!params) return;
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const result = await svc.deleteReportEntryService(
                 params.prescriptionId,
                 params.itemId!,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({ success: true, ...(result as object) });
@@ -980,11 +980,11 @@ export const drugHistoryControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.addDrugHistoryService(
                 params.prescriptionId,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(201).json({
@@ -1013,12 +1013,12 @@ export const drugHistoryControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.updateDrugHistoryService(
                 params.prescriptionId,
                 params.itemId!,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({
@@ -1038,11 +1038,11 @@ export const drugHistoryControllers = {
                 req.params.id,
             );
             if (!params) return;
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const result = await svc.deleteDrugHistoryService(
                 params.prescriptionId,
                 params.itemId!,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({ success: true, ...(result as object) });
@@ -1084,11 +1084,11 @@ export const planControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.addPlanService(
                 params.prescriptionId,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(201).json({
@@ -1117,12 +1117,12 @@ export const planControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.updatePlanService(
                 params.prescriptionId,
                 params.itemId!,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({
@@ -1142,11 +1142,11 @@ export const planControllers = {
                 req.params.id,
             );
             if (!params) return;
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const result = await svc.deletePlanService(
                 params.prescriptionId,
                 params.itemId!,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({ success: true, ...(result as object) });
@@ -1188,11 +1188,11 @@ export const noteControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.addNoteService(
                 params.prescriptionId,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(201).json({
@@ -1221,12 +1221,12 @@ export const noteControllers = {
                 });
                 return;
             }
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const data = await svc.updateNoteService(
                 params.prescriptionId,
                 params.itemId!,
                 parsed.data,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({
@@ -1246,11 +1246,11 @@ export const noteControllers = {
                 req.params.id,
             );
             if (!params) return;
-            const { id, role } = req.user!;
+            const { userId, role } = req.user!;
             const result = await svc.deleteNoteService(
                 params.prescriptionId,
                 params.itemId!,
-                id,
+                userId,
                 role as Role,
             );
             res.status(200).json({ success: true, ...(result as object) });

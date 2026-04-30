@@ -95,7 +95,8 @@ export const getDrugByIdController = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const parsedId = drugIdSchema.safeParse(req.params.id);
+        const drugId = req.params.id;
+        const parsedId = drugIdSchema.safeParse(drugId);
 
         if (!parsedId.success) {
             res.status(400).json({

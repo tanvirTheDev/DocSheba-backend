@@ -682,6 +682,7 @@ export const rxItemControllers = {
     },
     update: async (req: Request, res: Response): Promise<void> => {
         try {
+            console.log("rx : ", req.params.id);
             const params = parseParams(
                 res,
                 req.params.prescriptionId,

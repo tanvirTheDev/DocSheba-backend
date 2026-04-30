@@ -7,6 +7,9 @@ import {
     updateUserController,
     changeUserStatusController,
     deactivateUserController,
+    listAssistantsController,
+    assignAssistantController,
+    removeAssistantController,
 } from "./controllers";
 import { authenticate } from "../../middleware/authenticate";
 import { authorize } from "../../middleware/authorize";
@@ -48,4 +51,38 @@ router.delete(
     deactivateUserController,
 );
 
+// ─── Doctor ↔ Assistant Management ───────────────────────────────────────────
+
+/**
+ * GET /users/doctors/:doctorId/assistants
+ * List all assistants linked to a doctor.
+ * Doctor can see their own assistants; admin can see any.
+ */
+router.get(
+    "/doctors/:doctorId/assistants",
+    authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
+    listAssistantsController,
+);
+
+/**
+ * POST /users/doctors/:doctorId/assistants
+ * Assign a DOCTOR_ASSISTANT user to a doctor.
+ * Admin only — doctors cannot assign their own assistants.
+ */
+router.post(
+    "/doctors/:doctorId/assistants",
+    authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
+    assignAssistantController,
+);
+
+/**
+ * DELETE /users/doctors/:doctorId/assistants/:assistantId
+ * Remove the link between a doctor and an assistant.
+ * Admin only.
+ */
+router.delete(
+    "/doctors/:doctorId/assistants/:assistantId",
+    authorize("DOCTOR", "ADMIN", "SUPER_ADMIN"),
+    removeAssistantController,
+);
 export default router;

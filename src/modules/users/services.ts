@@ -148,3 +148,98 @@ export const deactivateUserService = async (
 
     return { message: "User deactivated successfully." };
 };
+
+// modules/users/user.service.ts — add these
+
+export const assignAssistantService = async (
+    doctorId: string, // User.id of the doctor
+    assistantId: string, // User.id of the assistant
+) => {
+    // Validate doctor exists and has role DOCTOR
+    const doctor = await prisma.user.findUnique({
+        where: { id: doctorId },
+        select: { id: true, role: true },
+    });
+
+    if (!doctor) throw new Error("USER_NOT_FOUND");
+    if (doctor.role !== Role.DOCTOR) throw new Error("TARGET_NOT_A_DOCTOR");
+
+    // Validate assistant exists and has role DOCTOR_ASSISTANT
+    const assistant = await prisma.user.findUnique({
+        where: { id: assistantId },
+        select: { id: true, role: true, assistantId: true },
+    });
+
+    if (!assistant) throw new Error("ASSISTANT_NOT_FOUND");
+    if (assistant.role !== Role.DOCTOR_ASSISTANT)
+        throw new Error("USER_NOT_AN_ASSISTANT");
+
+    // Block if already assigned to another doctor
+    if (assistant.assistantId && assistant.assistantId !== doctorId)
+        throw new Error("ASSISTANT_ALREADY_ASSIGNED");
+
+    // No-op if already assigned to this doctor
+    if (assistant.assistantId === doctorId)
+        throw new Error("ALREADY_ASSIGNED_TO_THIS_DOCTOR");
+
+    return prisma.user.update({
+        where: { id: assistantId },
+        data: { assistantId: doctorId },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            assistantId: true,
+        },
+    });
+};
+
+export const removeAssistantService = async (
+    doctorId: string,
+    assistantId: string,
+) => {
+    const assistant = await prisma.user.findUnique({
+        where: { id: assistantId },
+        select: { id: true, role: true, assistantId: true },
+    });
+
+    if (!assistant) throw new Error("ASSISTANT_NOT_FOUND");
+    if (assistant.role !== Role.DOCTOR_ASSISTANT)
+        throw new Error("USER_NOT_AN_ASSISTANT");
+
+    // Only unlink if currently assigned to this doctor
+    if (assistant.assistantId !== doctorId)
+        throw new Error("NOT_ASSIGNED_TO_THIS_DOCTOR");
+
+    await prisma.user.update({
+        where: { id: assistantId },
+        data: { assistantId: null },
+    });
+
+    return { message: "Assistant unlinked from doctor successfully." };
+};
+
+export const listAssistantsService = async (doctorId: string) => {
+    const doctor = await prisma.user.findUnique({
+        where: { id: doctorId },
+        select: { id: true, role: true },
+    });
+
+    if (!doctor) throw new Error("USER_NOT_FOUND");
+    if (doctor.role !== Role.DOCTOR) throw new Error("TARGET_NOT_A_DOCTOR");
+
+    return prisma.user.findMany({
+        where: { assistantId: doctorId },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            status: true,
+            createdAt: true,
+        },
+        orderBy: { createdAt: "asc" },
+    });
+};

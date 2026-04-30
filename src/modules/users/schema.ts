@@ -49,3 +49,13 @@ export const changeStatusSchema = z.object({
 });
 
 export type ChangeStatusInput = z.infer<typeof changeStatusSchema>;
+
+export const assignAssistantSchema = z.object({
+    assistantId: z.string().cuid("Invalid assistant user ID."),
+});
+
+export const removeAssistantSchema = z.object({
+    assistantId: z.string().cuid("Invalid assistant user ID."),
+});
+
+export type AssignAssistantInput = z.infer<typeof assignAssistantSchema>;

@@ -6,6 +6,7 @@ import {
     updateUserSchema,
     changeStatusSchema,
     userIdSchema,
+    assignAssistantSchema,
 } from "./schema";
 import {
     listUsersService,
@@ -13,6 +14,9 @@ import {
     updateUserService,
     changeUserStatusService,
     deactivateUserService,
+    assignAssistantService,
+    removeAssistantService,
+    listAssistantsService,
 } from "./services";
 
 // ─── List Users (Admin) ───────────────────────────────────────────────────────
@@ -287,6 +291,193 @@ export const deactivateUserController = async (
         }
 
         console.error("[deactivateUserController]", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error.",
+            code: 500,
+        });
+    }
+};
+
+// modules/users/user.controller.ts — add these
+
+export const assignAssistantController = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const parsedDoctorId = userIdSchema.safeParse(req.params.doctorId);
+
+        if (!parsedDoctorId.success) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid doctor ID.",
+                errors: parsedDoctorId.error.flatten(),
+            });
+            return;
+        }
+
+        const parsed = assignAssistantSchema.safeParse(req.body);
+
+        if (!parsed.success) {
+            res.status(422).json({
+                success: false,
+                message: "Validation failed.",
+                errors: parsed.error.flatten().fieldErrors,
+            });
+            return;
+        }
+
+        const result = await assignAssistantService(
+            parsedDoctorId.data,
+            parsed.data.assistantId,
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Assistant assigned to doctor successfully.",
+            data: result,
+        });
+    } catch (error) {
+        if (error instanceof Error) {
+            const map: Record<string, [number, string]> = {
+                USER_NOT_FOUND: [404, "Doctor not found."],
+                TARGET_NOT_A_DOCTOR: [400, "Target user is not a doctor."],
+                ASSISTANT_NOT_FOUND: [404, "Assistant user not found."],
+                USER_NOT_AN_ASSISTANT: [
+                    400,
+                    "Target user does not have the DOCTOR_ASSISTANT role.",
+                ],
+                ASSISTANT_ALREADY_ASSIGNED: [
+                    409,
+                    "This assistant is already assigned to another doctor.",
+                ],
+                ALREADY_ASSIGNED_TO_THIS_DOCTOR: [
+                    400,
+                    "This assistant is already assigned to this doctor.",
+                ],
+            };
+            const match = map[error.message];
+            if (match) {
+                res.status(match[0]).json({
+                    success: false,
+                    message: match[1],
+                    code: match[0],
+                });
+                return;
+            }
+        }
+
+        console.error("[assignAssistantController]", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error.",
+            code: 500,
+        });
+    }
+};
+
+export const removeAssistantController = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const parsedDoctorId = userIdSchema.safeParse(req.params.doctorId);
+        const parsedAssistantId = userIdSchema.safeParse(
+            req.params.assistantId,
+        );
+
+        if (!parsedDoctorId.success || !parsedAssistantId.success) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid doctor ID or assistant ID.",
+            });
+            return;
+        }
+
+        const result = await removeAssistantService(
+            parsedDoctorId.data,
+            parsedAssistantId.data,
+        );
+
+        res.status(200).json({ success: true, ...result });
+    } catch (error) {
+        if (error instanceof Error) {
+            const map: Record<string, [number, string]> = {
+                ASSISTANT_NOT_FOUND: [404, "Assistant user not found."],
+                USER_NOT_AN_ASSISTANT: [
+                    400,
+                    "Target user does not have the DOCTOR_ASSISTANT role.",
+                ],
+                NOT_ASSIGNED_TO_THIS_DOCTOR: [
+                    400,
+                    "This assistant is not assigned to this doctor.",
+                ],
+            };
+            const match = map[error.message];
+            if (match) {
+                res.status(match[0]).json({
+                    success: false,
+                    message: match[1],
+                    code: match[0],
+                });
+                return;
+            }
+        }
+
+        console.error("[removeAssistantController]", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error.",
+            code: 500,
+        });
+    }
+};
+
+export const listAssistantsController = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const parsedId = userIdSchema.safeParse(req.params.doctorId);
+
+        if (!parsedId.success) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid doctor ID.",
+                errors: parsedId.error.flatten(),
+            });
+            return;
+        }
+
+        const assistants = await listAssistantsService(parsedId.data);
+
+        res.status(200).json({
+            success: true,
+            message: "Assistants retrieved successfully.",
+            data: assistants,
+        });
+    } catch (error) {
+        if (error instanceof Error) {
+            if (error.message === "USER_NOT_FOUND") {
+                res.status(404).json({
+                    success: false,
+                    message: "Doctor not found.",
+                    code: 404,
+                });
+                return;
+            }
+            if (error.message === "TARGET_NOT_A_DOCTOR") {
+                res.status(400).json({
+                    success: false,
+                    message: "Target user is not a doctor.",
+                    code: 400,
+                });
+                return;
+            }
+        }
+
+        console.error("[listAssistantsController]", error);
         res.status(500).json({
             success: false,
             message: "Internal server error.",

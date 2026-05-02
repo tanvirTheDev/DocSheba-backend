@@ -380,8 +380,11 @@ model Appointment {
   paymentStatus   Boolean           @default(false)
   appointmentDate DateTime
   location        String?
-  chiefComplaint  String?
+  chiefComplaint  String? 
   notes           String?
+
+  isFollowUp        Boolean  @default(false)
+  previousApptId    String?  // link to the original appointment
 
   // ── Video / Audio call fields ──────────────────────────────
   callRoomId       String?   // Daily.co / Jitsi / Whereby room ID

@@ -30,30 +30,41 @@ export type ListAppointmentsInput = z.infer<typeof listAppointmentsSchema>;
 
 // ─── Create Appointment ───────────────────────────────────────────────────────
 
-export const createAppointmentSchema = z.object({
-    patientId: z.string().cuid("Invalid patient ID."),
-    doctorId: z.string().cuid("Invalid doctor ID."),
-    serviceId: z.string().cuid("Invalid service ID.").optional(),
-    serviceType: z.nativeEnum(ServiceType, {
-        errorMap: () => ({ message: "Invalid service type." }),
-    }),
-    fee: z
-        .number({ required_error: "Fee is required." })
-        .int("Fee must be a whole number.")
-        .positive("Fee must be a positive number."),
-    paymentMethod: z.nativeEnum(PaymentMethod).default(PaymentMethod.CASH),
-    appointmentDate: z.coerce
-        .date({ required_error: "Appointment date is required." })
-        .min(new Date(), "Appointment date cannot be in the past."),
-    location: z.string().trim().max(200).optional().nullable(),
-    chiefComplaint: z.string().trim().max(500).optional().nullable(),
-    notes: z.string().trim().max(1000).optional().nullable(),
-    referralAgentId: z
-        .string()
-        .cuid("Invalid referral agent ID.")
-        .optional()
-        .nullable(),
-});
+export const createAppointmentSchema = z
+    .object({
+        patientId: z.string().cuid("Invalid patient ID."),
+        doctorId: z.string().cuid("Invalid doctor ID."),
+        serviceId: z.string().cuid("Invalid service ID.").optional(),
+        serviceType: z.nativeEnum(ServiceType, {
+            errorMap: () => ({ message: "Invalid service type." }),
+        }),
+        fee: z.coerce
+            .number()
+            .int("Fee must be a whole number.")
+            .positive("Fee must be a positive number."),
+        paymentMethod: z.nativeEnum(PaymentMethod).default(PaymentMethod.CASH),
+        appointmentDate: z.coerce
+            .date()
+            .min(new Date(), "Appointment date cannot be in the past."),
+        location: z.string().trim().max(200).optional().nullable(),
+        chiefComplaint: z.string().trim().max(500).optional().nullable(),
+        notes: z.string().trim().max(1000).optional().nullable(),
+        referralAgentId: z
+            .string()
+            .cuid("Invalid referral agent ID.")
+            .optional()
+            .nullable(),
+        isFollowUp: z.coerce.boolean().default(false),
+        previousApptId: z
+            .string()
+            .cuid("Invalid appointment ID.")
+            .optional()
+            .nullable(),
+    })
+    .refine((data) => !data.isFollowUp || !!data.previousApptId, {
+        message: "previousApptId is required when isFollowUp is true.",
+        path: ["previousApptId"],
+    });
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 
@@ -67,6 +78,7 @@ export const updateAppointmentSchema = z
         chiefComplaint: z.string().trim().max(500).optional().nullable(),
         notes: z.string().trim().max(1000).optional().nullable(),
         paymentMethod: z.nativeEnum(PaymentMethod).optional(),
+        paymentStatus: z.coerce.boolean().optional(),
         callRoomId: z.string().trim().optional().nullable(),
         callStartedAt: z.coerce.date().optional().nullable(),
         callEndedAt: z.coerce.date().optional().nullable(),
@@ -78,6 +90,16 @@ export const updateAppointmentSchema = z
     })
     .refine((data) => Object.keys(data).length > 0, {
         message: "At least one field must be provided for update.",
-    });
+    })
+    .refine(
+        (data) =>
+            !data.callEndedAt ||
+            !data.callStartedAt ||
+            data.callEndedAt > data.callStartedAt,
+        {
+            message: "callEndedAt must be after callStartedAt.",
+            path: ["callEndedAt"],
+        },
+    );
 
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;

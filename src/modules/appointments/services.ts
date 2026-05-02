@@ -199,7 +199,6 @@ export const getAppointmentByIdService = async (
 
     return appointment;
 };
-
 // ─── Create Appointment ───────────────────────────────────────────────────────
 
 export const createAppointmentService = async (
@@ -219,6 +218,8 @@ export const createAppointmentService = async (
         chiefComplaint,
         notes,
         referralAgentId,
+        isFollowUp,
+        previousApptId,
     } = data;
 
     // ── Validate patient ──────────────────────────────────────────────────────
@@ -235,7 +236,9 @@ export const createAppointmentService = async (
         select: {
             id: true,
             role: true,
-            doctorProfile: { select: { isAvailable: true } },
+            doctorProfile: {
+                select: { isAvailable: true, followUpFee: true },
+            },
         },
     });
     if (!doctor || doctor.role !== Role.DOCTOR)
@@ -244,12 +247,45 @@ export const createAppointmentService = async (
     if (!doctor.doctorProfile?.isAvailable)
         throw new Error("DOCTOR_NOT_AVAILABLE");
 
-    // ── Resolve fee , serviceType and location from DoctorService if serviceId given ─────
+    // ── Follow-up validation ──────────────────────────────────────────────────
     let resolvedFee = fee;
     let resolvedServiceType = serviceType;
     let visitLocation = null;
 
-    if (serviceId) {
+    if (isFollowUp) {
+        if (!previousApptId) throw new Error("PREVIOUS_APPOINTMENT_REQUIRED");
+
+        const original = await prisma.appointment.findUnique({
+            where: { id: previousApptId },
+            select: {
+                id: true,
+                patientId: true,
+                doctorId: true,
+                status: true,
+            },
+        });
+
+        if (!original) throw new Error("ORIGINAL_APPOINTMENT_NOT_FOUND");
+
+        // Must be the same patient and same doctor
+        if (original.patientId !== patientId)
+            throw new Error("PATIENT_MISMATCH");
+
+        if (original.doctorId !== doctorId) throw new Error("DOCTOR_MISMATCH");
+
+        if (original.status !== AppointmentStatus.COMPLETED)
+            throw new Error("ORIGINAL_APPOINTMENT_NOT_COMPLETED");
+
+        const followUpFee = doctor.doctorProfile?.followUpFee;
+        if (!followUpFee) throw new Error("FOLLOW_UP_NOT_OFFERED");
+
+        // Always override fee with doctor's defined followUpFee
+        resolvedFee = Number(followUpFee);
+    }
+
+    // ── Resolve fee, serviceType, location from DoctorService if serviceId given ──
+    // Skip service resolution for follow-ups — fee is already locked above
+    if (serviceId && !isFollowUp) {
         const service = await prisma.doctorService.findFirst({
             where: { id: serviceId, doctorId, isActive: true },
             select: { fee: true, serviceType: true },
@@ -258,14 +294,16 @@ export const createAppointmentService = async (
 
         resolvedFee = Number(service.fee);
         resolvedServiceType = service.serviceType;
+
         if (service.serviceType === ServiceType.HOME_VISIT) {
-            visitLocation = location;
+            visitLocation = location ?? null;
         }
     }
 
     // ── Validate referral agent if provided ───────────────────────────────────
+    // Follow-ups don't earn referral commissions
     let referralAgent = null;
-    if (referralAgentId) {
+    if (referralAgentId && !isFollowUp) {
         referralAgent = await prisma.referralAgent.findUnique({
             where: { id: referralAgentId },
             select: {
@@ -298,6 +336,8 @@ export const createAppointmentService = async (
                 chiefComplaint: chiefComplaint ?? null,
                 notes: notes ?? null,
                 status: AppointmentStatus.PENDING,
+                isFollowUp: isFollowUp ?? false,
+                previousApptId: isFollowUp ? previousApptId : null,
             },
             select: appointmentSelect,
         });
@@ -326,9 +366,7 @@ export const createAppointmentService = async (
         return appointment;
     });
 };
-
 // ─── Update Appointment ───────────────────────────────────────────────────────
-
 export const updateAppointmentService = async (
     id: string,
     data: UpdateAppointmentInput,
@@ -337,19 +375,24 @@ export const updateAppointmentService = async (
 ) => {
     const appointment = await prisma.appointment.findUnique({
         where: { id },
-        select: { id: true, patientId: true, doctorId: true, status: true },
+        select: {
+            id: true,
+            patientId: true,
+            doctorId: true,
+            status: true,
+            callStartedAt: true, // needed if only one timestamp is sent
+            callEndedAt: true,
+        },
     });
 
     if (!appointment) throw new Error("APPOINTMENT_NOT_FOUND");
 
-    // Block updates on cancelled or completed appointments
     if (appointment.status === AppointmentStatus.CANCELLED)
         throw new Error("APPOINTMENT_CANCELLED");
 
     if (appointment.status === AppointmentStatus.COMPLETED)
         throw new Error("APPOINTMENT_COMPLETED");
 
-    // Only doctor, admin, or assistant can update
     const isAdmin = ([Role.ADMIN, Role.SUPER_ADMIN] as Role[]).includes(
         requesterRole,
     );
@@ -359,12 +402,21 @@ export const updateAppointmentService = async (
 
     if (!isAdmin && !isDoctor && !isAssistant) throw new Error("FORBIDDEN");
 
-    // Calculate callDurationMin if both timestamps are present
+    // ── Status transition guard ───────────────────────────────────────────────
+    if (data.status) {
+        assertValidStatusTransition(appointment.status, data.status);
+    }
+
+    // ── Resolve callDurationMin using incoming + existing timestamps ──────────
+    // Either timestamp may come from the DB if only one side is being updated
+    const effectiveStart = data.callStartedAt ?? appointment.callStartedAt;
+    const effectiveEnd = data.callEndedAt ?? appointment.callEndedAt;
+
     let callDurationMin: number | undefined;
-    if (data.callEndedAt && data.callStartedAt) {
-        const diffMs =
-            data.callEndedAt.getTime() - data.callStartedAt.getTime();
-        callDurationMin = Math.round(diffMs / 60000);
+    if (effectiveStart && effectiveEnd && effectiveEnd > effectiveStart) {
+        callDurationMin = Math.round(
+            (effectiveEnd.getTime() - effectiveStart.getTime()) / 60000,
+        );
     }
 
     return prisma.appointment.update({
@@ -377,6 +429,31 @@ export const updateAppointmentService = async (
     });
 };
 
+// ─── Status Transition Guard ──────────────────────────────────────────────────
+
+const VALID_TRANSITIONS: Partial<
+    Record<AppointmentStatus, AppointmentStatus[]>
+> = {
+    [AppointmentStatus.PENDING]: [
+        AppointmentStatus.CONFIRMED,
+        AppointmentStatus.CANCELLED,
+    ],
+    [AppointmentStatus.CONFIRMED]: [
+        AppointmentStatus.IN_PROGRESS,
+        AppointmentStatus.CANCELLED,
+    ],
+    [AppointmentStatus.IN_PROGRESS]: [AppointmentStatus.COMPLETED],
+};
+
+const assertValidStatusTransition = (
+    current: AppointmentStatus,
+    next: AppointmentStatus,
+) => {
+    const allowed = VALID_TRANSITIONS[current] ?? [];
+    if (!allowed.includes(next))
+        throw new Error(`INVALID_STATUS_TRANSITION:${current}_TO_${next}`);
+};
+
 // ─── Cancel Appointment ───────────────────────────────────────────────────────
 
 export const cancelAppointmentService = async (
@@ -386,18 +463,23 @@ export const cancelAppointmentService = async (
 ) => {
     const appointment = await prisma.appointment.findUnique({
         where: { id },
-        select: { id: true, patientId: true, doctorId: true, status: true },
+        select: {
+            id: true,
+            patientId: true,
+            doctorId: true,
+            status: true,
+            isFollowUp: true,
+        },
     });
 
     if (!appointment) throw new Error("APPOINTMENT_NOT_FOUND");
 
-    if (appointment.status === AppointmentStatus.CANCELLED)
-        throw new Error("APPOINTMENT_ALREADY_CANCELLED");
+    // Reuse the same transition guard — CANCELLED is a valid target from PENDING and CONFIRMED only
+    assertValidStatusTransition(
+        appointment.status,
+        AppointmentStatus.CANCELLED,
+    );
 
-    if (appointment.status === AppointmentStatus.COMPLETED)
-        throw new Error("APPOINTMENT_COMPLETED");
-
-    // Patients can cancel their own; doctors, assistants, admins can cancel any
     const isAdmin = ([Role.ADMIN, Role.SUPER_ADMIN] as Role[]).includes(
         requesterRole,
     );
@@ -410,14 +492,12 @@ export const cancelAppointmentService = async (
     if (!isAdmin && !isPatient && !isDoctor && !isAssistant)
         throw new Error("FORBIDDEN");
 
-    await prisma.appointment.update({
+    return prisma.appointment.update({
         where: { id },
         data: { status: AppointmentStatus.CANCELLED },
+        select: appointmentSelect,
     });
-
-    return { message: "Appointment cancelled successfully." };
 };
-
 // ─── Start Call ───────────────────────────────────────────────────────────────
 
 export const startCallService = async (

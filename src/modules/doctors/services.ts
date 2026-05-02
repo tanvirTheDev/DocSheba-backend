@@ -8,6 +8,7 @@ import {
     CreateDoctorServiceInput,
     UpdateDoctorServiceInput,
 } from "./schema";
+import { uploadToCloudinary } from "../../utils/cloudinay";
 
 // ─── Shared Selects ───────────────────────────────────────────────────────────
 
@@ -82,34 +83,74 @@ export const upsertDoctorProfileService = async (
     data: UpsertDoctorProfileInput,
     requesterId: string,
     requesterRole: Role,
+    files?: {
+        profileImage?: Express.Multer.File;
+        coverImage?: Express.Multer.File;
+        signatureImage?: Express.Multer.File;
+    },
 ) => {
     await assertDoctorExists(userId);
 
-    // Only the doctor themselves or an admin can upsert
     if (
         requesterId !== userId &&
-        requesterRole !== Role.DOCTOR && //TODO: change this later
         requesterRole !== Role.ADMIN &&
         requesterRole !== Role.SUPER_ADMIN
     )
         throw new Error("FORBIDDEN");
 
-    // Check licenseNo uniqueness if provided
     if (data.licenseNo) {
         const conflict = await prisma.doctorProfile.findFirst({
-            where: {
-                licenseNo: data.licenseNo,
-                NOT: { userId },
-            },
+            where: { licenseNo: data.licenseNo, NOT: { userId } },
             select: { id: true },
         });
         if (conflict) throw new Error("LICENSE_NO_TAKEN");
     }
 
+    const [profileImageUrl, coverImageUrl, signatureImageUrl] =
+        await Promise.all([
+            files?.profileImage
+                ? uploadToCloudinary(
+                      files.profileImage.buffer,
+                      "doctor-profiles",
+                      `${userId}-profile`,
+                  )
+                : Promise.resolve(undefined),
+
+            files?.coverImage
+                ? uploadToCloudinary(
+                      files.coverImage.buffer,
+                      "doctor-covers",
+                      `${userId}-cover`,
+                  )
+                : Promise.resolve(undefined),
+
+            files?.signatureImage
+                ? uploadToCloudinary(
+                      files.signatureImage.buffer,
+                      "doctor-signatures",
+                      `${userId}-signature`,
+                  )
+                : Promise.resolve(undefined),
+        ]);
+
+    const imagePatch: Partial<{
+        profileImageUrl: string;
+        coverImageUrl: string;
+        signatureImageUrl: string;
+    }> = {};
+
+    if (profileImageUrl !== undefined)
+        imagePatch.profileImageUrl = profileImageUrl;
+    if (coverImageUrl !== undefined) imagePatch.coverImageUrl = coverImageUrl;
+    if (signatureImageUrl !== undefined)
+        imagePatch.signatureImageUrl = signatureImageUrl;
+
+    const payload = { ...data, ...imagePatch };
+
     return prisma.doctorProfile.upsert({
         where: { userId },
-        create: { userId, ...data },
-        update: data,
+        create: { userId, ...payload },
+        update: payload,
         select: profileSelect,
     });
 };

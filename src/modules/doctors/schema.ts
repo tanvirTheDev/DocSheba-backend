@@ -15,14 +15,10 @@ export const upsertDoctorProfileSchema = z
         specialty: z.string().trim().min(2).max(100).optional(),
         qualifications: z.string().trim().min(2).max(500).optional(),
         licenseNo: z.string().trim().min(2).max(50).optional(),
-        signatureImageUrl: z
-            .string()
-            .url("Invalid signature image URL.")
-            .optional()
-            .nullable(),
         clinicName: z.string().trim().min(2).max(200).optional(),
         clinicAddress: z.string().trim().min(5).max(500).optional(),
-        isAvailable: z.boolean().optional(),
+        followUpFee: z.coerce.number().nonnegative().optional().nullable(),
+        isAvailable: z.coerce.boolean().optional(),
     })
     .refine((data) => Object.keys(data).length > 0, {
         message: "At least one field must be provided.",
@@ -31,7 +27,6 @@ export const upsertDoctorProfileSchema = z
 export type UpsertDoctorProfileInput = z.infer<
     typeof upsertDoctorProfileSchema
 >;
-
 // ─── Create Doctor Service ────────────────────────────────────────────────────
 
 export const createDoctorServiceSchema = z.object({

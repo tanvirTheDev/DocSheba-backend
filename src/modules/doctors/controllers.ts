@@ -95,8 +95,7 @@ export const getDoctorProfileController = async (
     }
 };
 
-// ─── Upsert Doctor Profile ────────────────────────────────────────────────────
-
+// ─── Upsert Doctor Profile ─────────────────────────────────────────────────────
 export const upsertDoctorProfileController = async (
     req: Request,
     res: Response,
@@ -126,11 +125,20 @@ export const upsertDoctorProfileController = async (
 
         const { userId: requesterId, role: requesterRole } = req.user!;
 
+        const files = req.files as
+            | Record<string, Express.Multer.File[]>
+            | undefined;
+
         const profile = await upsertDoctorProfileService(
             parsedId.data,
             parsed.data,
             requesterId,
             requesterRole as Role,
+            {
+                profileImage: files?.profileImage?.[0],
+                coverImage: files?.coverImage?.[0],
+                signatureImage: files?.signatureImage?.[0],
+            },
         );
 
         res.status(200).json({
@@ -142,7 +150,6 @@ export const upsertDoctorProfileController = async (
         handleServiceError(error, res, "upsertDoctorProfileController");
     }
 };
-
 // ─── List Doctor Services ─────────────────────────────────────────────────────
 
 export const listDoctorServicesController = async (

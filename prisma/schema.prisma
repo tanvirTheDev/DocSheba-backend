@@ -242,14 +242,15 @@ model DoctorProfile {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // coverImageUrl    String?
-  // profileImageUrl  String?
+  coverImageUrl     String?
+  profileImageUrl   String?
   specialty         String?
   qualifications    String?
   licenseNo         String? @unique
   signatureImageUrl String?
   clinicName        String?
   clinicAddress     String?
+  followUpFee       Decimal?
   isAvailable       Boolean @default(true)
 
   createdAt DateTime @default(now())
